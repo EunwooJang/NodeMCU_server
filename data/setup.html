@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>File Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px 0;
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin: 5px 0;
+            padding: 10px;
+            background: #ffffff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .row {
+            display: flex;
+            gap: 20px;
+        }
+        .half {
+            flex: 1;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+        }
+        .third {
+            flex: 1;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+        input[type="file"], input[type="text"] {
+            margin: 10px 0;
+            padding: 10px;
+            width: calc(100% - 22px);
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .file-list ul {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div style="text-align:center; margin-bottom: 20px;">
+        <a href="/" style="padding: 10px; text-decoration: none; border-radius: 5px; background-color: #007BFF; color: white;">Main</a>
+        <a href="/files" style="padding: 10px; text-decoration: none; border-radius: 5px; background-color: #007BFF; color: white;">Files</a>
+        <a href="/update" style="padding: 10px; text-decoration: none; border-radius: 5px; background-color: #007BFF; color: white;">Update</a>
+    </div>
+
+    <h1>File Manager</h1>
+
+    <div class="container">
+        <div class="row">
+            <div class="half file-info">
+                <h2>SPIFFS Usage</h2>
+                <p>Total: <span id="spiffsTotal"></span> bytes</p>
+                <p>Used: <span id="spiffsUsed"></span> bytes</p>
+                <p>Usage: <span id="spiffsPercentage"></span>%</p>
+            </div>
+
+            <div class="half file-list">
+                <h2>SPIFFS File List</h2>
+                <ul id="spiffsFileList"></ul>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="third file-actions">
+                <h2>SPIFFS Upload</h2>
+                <input type="file" id="spiffsFileInput" multiple>
+                <button onclick="uploadFilesWithProgress('/upload', 'spiffsFileInput', fetchSPIFFSInfo, fetchSPIFFSFileList, 'spiffsUploadProgress')">Upload</button>
+                <div id="spiffsUploadProgress">Progress: 0%</div>
+            </div>
+
+            <div class="third file-actions">
+                <h2>SPIFFS Download</h2>
+                <input type="text" id="spiffsDownloadFilename" placeholder="Enter filename to download">
+                <button onclick="downloadFileWithProgress('/download', 'spiffsDownloadFilename', 'spiffsDownloadProgress')">Download</button>
+                <div id="spiffsDownloadProgress">Progress: 0%</div>
+            </div>
+
+            <div class="third file-actions">
+                <h2>SPIFFS Delete</h2>
+                <input type="text" id="spiffsDeleteFilename" placeholder="Enter filename to delete">
+                <button onclick="deleteFileWithProgress('/delete', 'spiffsDeleteFilename', fetchSPIFFSInfo, fetchSPIFFSFileList, 'spiffsDeleteProgress')">Delete</button>
+                <div id="spiffsDeleteProgress">Progress: 0%</div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="half file-info">
+                <h2>SD Card Usage</h2>
+                <p>Total: <span id="sdTotal"></span> bytes</p>
+                <p>Used: <span id="sdUsed"></span> bytes</p>
+                <p>Usage: <span id="sdPercentage"></span>%</p>
+            </div>
+
+            <div class="half file-list">
+                <h2>SD Card File List</h2>
+                <ul id="sdFileList"></ul>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="third file-actions">
+                <h2>SD Upload</h2>
+                <input type="file" id="sdFileInput" multiple>
+                <button onclick="uploadFilesWithProgress('/sdupload', 'sdFileInput', fetchSDInfo, fetchSDFileList, 'sdUploadProgress')">Upload</button>
+                <div id="sdUploadProgress">Progress: 0%</div>
+            </div>
+
+            <div class="third file-actions">
+                <h2>SD Download</h2>
+                <input type="text" id="sdDownloadFilename" placeholder="Enter filename to download">
+                <button onclick="downloadFileWithProgress('/sddownload', 'sdDownloadFilename', 'sdDownloadProgress')">Download</button>
+                <div id="sdDownloadProgress">Progress: 0%</div>
+            </div>
+
+            <div class="third file-actions">
+                <h2>SD Delete</h2>
+                <input type="text" id="sdDeleteFilename" placeholder="Enter filename to delete">
+                <button onclick="deleteFileWithProgress('/sddelete', 'sdDeleteFilename', fetchSDInfo, fetchSDFileList, 'sdDeleteProgress')">Delete</button>
+                <div id="sdDeleteProgress">Progress: 0%</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function fetchSPIFFSInfo() {
+            fetch('/spiffs')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('spiffsTotal').textContent = data.total;
+                    document.getElementById('spiffsUsed').textContent = data.used;
+                    document.getElementById('spiffsPercentage').textContent = data.percentage.toFixed(4);
+                });
+        }
+
+        function fetchSPIFFSFileList() {
+            fetch('/list')
+                .then(response => response.json())
+                .then(data => {
+                    const fileList = document.getElementById('spiffsFileList');
+                    fileList.innerHTML = '';
+                    data.files.forEach(file => {
+                        const li = document.createElement('li');
+                        const fileName = file.name.startsWith('/') ? file.name.slice(1) : file.name; // '/' 제거
+                        li.textContent = `${fileName} (${file.size} bytes)`;
+                        fileList.appendChild(li);
+                });
+            });
+        }
+
+        function fetchSDInfo() {
+            fetch('/sdinfo')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('sdTotal').textContent = data.total;
+                    document.getElementById('sdUsed').textContent = data.used;
+                    document.getElementById('sdPercentage').textContent = data.percentage.toFixed(4);
+                });
+        }
+
+        function fetchSDFileList() {
+            fetch('/sdlist')
+                .then(response => response.json())
+                .then(data => {
+                    const fileList = document.getElementById('sdFileList');
+                    fileList.innerHTML = '';
+                    data.files.forEach(file => {
+                        const li = document.createElement('li');
+                        li.textContent = `${file.name} (${file.size} bytes)`;
+                        fileList.appendChild(li);
+                    });
+                });
+        }
+
+        function uploadFilesWithProgress(endpoint, inputId, fetchInfo, fetchFileList, progressId) {
+            const fileInput = document.getElementById(inputId);
+            const files = fileInput.files;
+            const formData = new FormData();
+
+            for (let i = 0; i < files.length; i++) {
+                formData.append('files[]', files[i]);
+            }
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', endpoint, true);
+        
+            xhr.upload.onprogress = function (event) {
+                if (event.lengthComputable) {
+                    const progress = (event.loaded / event.total) * 100;
+                    document.getElementById(progressId).textContent = `Progress: ${progress.toFixed(2)}%`;
+                }
+            };
+
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    alert('Files uploaded successfully!');
+                    document.getElementById(progressId).textContent = 'Upload complete!';
+                    fetchInfo();
+                    fetchFileList();
+                } else {
+                    alert('Upload failed.');
+                }
+            };
+
+            xhr.send(formData);
+        }
+
+        function downloadFileWithProgress(endpoint, inputId, progressId) {
+            let filename = document.getElementById(inputId).value;
+
+            if (!filename) {
+                alert('Please enter a filename to download.');
+                return;
+            }
+
+            if (!filename.startsWith('/')) {
+                filename = '/' + filename;
+            }
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', `${endpoint}?filename=${filename}`, true);
+            xhr.responseType = 'blob';
+
+            xhr.onprogress = function (event) {
+                if (event.lengthComputable) {
+                    const progress = (event.loaded / event.total) * 100;
+                    document.getElementById(progressId).textContent = `Progress: ${progress.toFixed(2)}%`;
+                }
+            };
+
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    const blob = xhr.response;
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = filename.replace('/', '');
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.getElementById(progressId).textContent = 'Download complete!';
+                } else {
+                    alert('Download failed.');
+                }
+            };
+
+            xhr.send();
+        }
+
+        function deleteFileWithProgress(endpoint, inputId, fetchInfo, fetchFileList, progressId) {
+            let filename = document.getElementById(inputId).value;
+            if (!filename.startsWith('/')) {
+                filename = '/' + filename;
+            }
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', endpoint, true);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+
+
+            xhr.onprogress = function (event) {
+                if (event.lengthComputable) {
+                    const progress = (event.loaded / event.total) * 100;
+                    document.getElementById(progressId).textContent = `Progress: ${progress.toFixed(2)}%`;
+                }
+            };
+
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    alert('File deleted successfully!');
+                    document.getElementById(progressId).textContent = 'Delete complete!';
+                    fetchInfo();
+                    fetchFileList();
+                } else {
+                    alert('Delete failed.');
+                }
+            };
+
+            xhr.send(`filename=${filename}`);
+        }
+
+
+        // 초기 데이터 로드
+        fetchSPIFFSInfo();
+        fetchSPIFFSFileList();
+        fetchSDInfo();
+        fetchSDFileList();
+    </script>
+</body>
+</html>
