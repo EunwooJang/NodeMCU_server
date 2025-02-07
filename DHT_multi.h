@@ -6,12 +6,14 @@
 
 class DHTMulti {
 public:
-  DHTMulti(uint8_t slaveAmount);
+  DHTMulti(uint8_t slaveAmount, uint8_t sensorAmount, int* arr);
 
   char* getAllSensorData();
 
 private:
   uint8_t slaveAmount;
+  uint8_t sensorAmount;
+  int* arr;
   char* combinedData;
 
   bool requestSensorData(uint8_t slaveId, char* buffer);
