@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Data Monitor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        nav {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        nav a {
+            padding: 10px;
+            text-decoration: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: white;
+            margin: 5px;
+        }
+        nav a:hover {
+            background-color: #0056b3;
+        }
+        .container {
+            display: flex;
+            gap: 10px;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .section {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #fff;
+            overflow-y: auto;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        #log, #status {
+            height: calc(1.4em * 22);
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 5px;
+            background: #fff;
+            width: calc(50% - 10px);
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        #extra {
+            width: 100%;
+            height: calc(1.4em * 9);
+            border: 1px solid #ccc;
+            background-color: #fff;
+            margin-bottom: 5px;
+        }
+        #command-box {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+        }
+        #command-input {
+            width: 250px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        button {
+            padding: 8px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+    <script>
+        let socket;
+        let displayLogData = [];
+        const reconnectInterval = 5000; // 5초마다 재접속 시도
+        const SLAVE_COUNT = 5;
+        const SENSOR_COUNT = 5;
+
+        function connectWebSocket() {
+            socket = new WebSocket("ws://" + window.location.host + "/ws");
+
+            socket.onopen = function() {
+                console.log("WebSocket Connected");
+            };
+
+            socket.onmessage = function(event) {
+                try {
+                    const parsedData = JSON.parse(event.data);
+                    console.log("Received data:", parsedData);
+
+                    if ("version" in parsedData) {
+                        updateStatus(parsedData); // 상태 데이터 처리
+                    } else if ("result" in parsedData) {
+                        updateLog(parsedData); // 센서 데이터 처리
+                    } else {
+                        console.warn("Unknown data format:", parsedData);
+                    }
+                } catch (error) {
+                    console.error("Error decoding data:", error);
+                }
+            };
+
+            socket.onerror = function(error) {
+                console.log("WebSocket Error: " + error);
+            };
+
+            socket.onclose = function() {
+                console.log("WebSocket Disconnected. Attempting to reconnect...");
+                setTimeout(connectWebSocket, reconnectInterval);
+            };
+        }
+
+        function updateStatus(data) {
+            let statusText = `
+Version: ${data.version}
+
+
+[Temperature]
+Slave Count: ${data.temp.slave_Amount}
+Sensors per Slave: ${data.temp.sensor_Amount}
+
+
+[Magnetic]
+Slave Count: ${data.magnetic.slave_Amount}
+Sensors per Slave: ${data.magnetic.sensor_Amount}
+
+
+[Data Collection]
+Acquisition Interval: ${data.data.acquisitiontimeInterval} ms
+
+
+[Measurement]
+Measuring state: ${data.isMeasuring ? "ON" : "OFF"}
+Measuring Index: ${data.cur_index}
+            `;
+
+            document.getElementById("status").innerText = statusText.trim();
+        }
+
+        function updateLog(parsedData) {
+            const unixTime = parsedData.time;
+            const formattedTime = new Date(unixTime * 1000).toLocaleString();
+
+            console.log("Result type:", typeof parsedData.result);
+            console.log("Result content:", parsedData.result);
+
+            let values;
+            if (Array.isArray(parsedData.result)) {
+                values = parsedData.result.map(Number);
+            } else {
+                console.error("Unexpected data format:", parsedData.result);
+                return;
+            }
+
+            let logEntry = `[${formattedTime}]\n\n`;
+
+            let index = 0;
+            for (let slave = 0; slave < SLAVE_COUNT; slave++) {
+                logEntry += `[Slave ${slave + 1}]\n`;
+
+                let temperatureRow = "Temperature: ";
+                let humidityRow = "Humidity   : ";
+
+                for (let sensor = 0; sensor < SENSOR_COUNT; sensor++) {
+                    if (index + 1 < values.length) {
+                        let temperature = (values[index] / 10).toFixed(1).padStart(6, " ") + " °C";
+                        let humidity = (values[index + 1] / 10).toFixed(1).padStart(6, " ") + "  %";
+                        temperatureRow += temperature + "  ";
+                        humidityRow += humidity + "  ";
+                        index += 2;
+                    }
+                }
+
+                logEntry += `${temperatureRow}\n`;
+                logEntry += `${humidityRow}\n\n`;
+            }
+
+            displayLogData.push(logEntry);
+            if (displayLogData.length > 10) {
+                displayLogData.shift();
+            }
+
+            document.getElementById("log").innerHTML = displayLogData.join("\n\n");
+            document.getElementById("log").scrollTop = document.getElementById("log").scrollHeight;
+        }
+
+        function sendCommand() {
+            const command = document.getElementById("command-input").value.trim().toLowerCase();
+            if (!command) {
+                alert("Please enter a command.");
+                return;
+            }
+
+            if (command === "help") {
+                displayHelp();
+                return;
+            }
+
+            const password = prompt("Enter password:");
+            if (password === "earlyuniv" && socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(command);
+                alert(`"${command}" command sent.`);
+                document.getElementById("command-input").value = "";
+            } else {
+                alert("Incorrect password or WebSocket not connected.");
+            }
+        }
+
+        function displayHelp() {
+            const helpText = `
+        Commands:
+
+        - **start**: Begins sensor data measurement.
+        
+        - **stop**: Stops sensor data measurement.
+
+            `;
+            document.getElementById("extra").innerText = helpText.trim();
+        }
+
+
+        window.onload = function() {
+            connectWebSocket();
+        };
+    </script>
+</head>
+<body>
+    <nav>
+        <a href="/">Main</a>
+        <a href="/files">Files</a>
+        <a href="/update">Update</a>
+    </nav>
+
+    <h1>Data Monitor</h1>
+
+    <div class="container">
+        <div id="log" class="section">Waiting for data...</div>
+        <div id="status" class="section">Status</div>
+    </div>
+
+    <div id="extra"></div>
+
+    <div id="command-box">
+        <input type="text" id="command-input" placeholder="Enter command...">
+        <button onclick="sendCommand()">Send</button>
+    </div>
+</body>
+</html>
