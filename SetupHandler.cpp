@@ -5,32 +5,6 @@
 
 // 전역 변수 정의
 const int chipSelect = 15;
-uint64_t totalUsedBytes = 0;
-
-// SD 카드 사용량 업데이트 함수
-void updateSDUsedBytes() {
-  totalUsedBytes = 0;
-  SdFile dir, file;
-  if (dir.open("/")) {
-      while (file.openNext(&dir, O_RDONLY)) {
-          if (!file.isDir()) {
-              totalUsedBytes += file.fileSize();
-          }
-          file.close();
-      }
-      dir.close();
-  }
-  // Serial.println(totalUsedBytes);
-  
-  if (sd.card()) {
-        uint64_t cardSize = sd.card()->sectorCount();
-        uint64_t cardCapacity = cardSize * 512;
-        if (cardCapacity > 0) {
-            float usage = (totalUsedBytes * 100.0) / cardCapacity;
-            // Serial.printf("SD Usage: %.5f%%\n", usage); // Usage 디버깅 메시지
-        }
-    }
-}
 
 // SPIFFS 용량 정보 반환
 String getSPIFFSInfo() {
@@ -70,20 +44,14 @@ String getSDInfo() {
 
     if (!sd.card()) {
         doc["total"] = 0;
-        doc["used"] = 0;
-        doc["percentage"] = 0;
     } else {
         uint64_t cardSize = sd.card()->sectorCount(); // 카드 크기 (섹터 수)
         uint64_t cardCapacity = cardSize * 512;       // 카드 크기 (바이트)
 
         if (cardCapacity == 0) {
             doc["total"] = 0;
-            doc["used"] = 0;
-            doc["percentage"] = 0;
         } else {
             doc["total"] = cardCapacity;
-            doc["used"] = totalUsedBytes;
-            doc["percentage"] = (totalUsedBytes * 100.0) / cardCapacity; // 정확한 퍼센트 계산
         }
     }
 
@@ -108,7 +76,7 @@ String getSDFileList() {
                 JsonObject fileObj = files.createNestedObject();
                 fileObj["name"] = String(fileName);
                 fileObj["size"] = fileSize;
-                Serial.println(String(fileName));
+                // Serial.println(String(fileName));
             }
 
             file.close();
@@ -220,9 +188,6 @@ void handleSetupRoutes(AsyncWebServer& server) {
             file.write(data, len);
             file.close();
         }
-        if (final) {
-            updateSDUsedBytes(); // 업로드 후 SD 용량 갱신
-        }
     });
 
     // SD DELETE
@@ -235,7 +200,6 @@ void handleSetupRoutes(AsyncWebServer& server) {
 
             if (sd.exists(filename.c_str())) {
                 if (sd.remove(filename.c_str())) {
-                    updateSDUsedBytes(); // 삭제 후 SD 용량 갱신
                     String json = getSDInfo(); // 최신 정보 생성
                     request->send(200, "application/json", json); // 최신 SD 정보 반환
                 } else {
