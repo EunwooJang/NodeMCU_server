@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Data Monitor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        nav {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        nav a {
+            padding: 10px;
+            text-decoration: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: white;
+            margin: 0;
+        }
+        nav a:hover {
+            background-color: #0056b3;
+        }
+        .container {
+            display: flex;
+            gap: 10px;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .section {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #fff;
+            overflow-y: auto;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        #log, #status {
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 5px;
+            background: #fff;
+            width: calc(50% - 10px);
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        #extra {
+            width: 100%;
+            height: calc(1.4em * 9);
+            border: 1px solid #ccc;
+            background-color: #fff;
+            margin-bottom: 5px;
+        }
+        #command-box {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+        }
+        #command-input {
+            width: 250px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        button {
+            padding: 8px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+    <script>
+        let socket;
+        let displayLogData = [];
+        let reconnectInterval = 5000; // 5초마다 재접속 시도
+        let TEMP_SLAVE_COUNT = 5;
+        let TEMP_SENSOR_COUNT = 5;
+        let MAG_SLAVE_COUNT = 1;
+        let MAG_SENSOR_COUNT = 1;
+        let updated = 0;
+        let ALIVE_TEMP_SLAVE;
+        let ALIVE_MAG_SLAVE
+
+        function connectWebSocket() {
+            socket = new WebSocket("ws://" + window.location.host + "/ws");
+
+            socket.onopen = function() {
+                console.log("WebSocket Connected");
+            };
+
+            socket.onmessage = function(event) {
+                try {
+                    const parsedData = JSON.parse(event.data);
+                    console.log("Received data:", parsedData);
+
+                    if ("v" in parsedData) {
+                        updateStatus(parsedData); // 상태 데이터 처리
+                        updated = 1;
+                        
+                    } else if ("result" in parsedData) {
+                        if (updated == 1) {
+                          updateLog(parsedData); // 센서 데이터 처리
+                        }
+                    } else {
+                        console.warn("Unknown data format:", parsedData);
+                    }
+                } catch (error) {
+                    console.error("Error decoding data:", error);
+                }
+            };
+
+            socket.onerror = function(error) {
+                console.log("WebSocket Error: " + error);
+            };
+
+            socket.onclose = function() {
+                console.log("WebSocket Disconnected. Attempting to reconnect...");
+                setTimeout(connectWebSocket, reconnectInterval);
+            };
+        }
+
+        function adjustHeight() {
+            let tempRows = TEMP_SLAVE_COUNT * 4;
+            let magRows = MAG_SLAVE_COUNT * (2 + MAG_SENSOR_COUNT);
+            let extraRows = 2; // 타임스탬프 및 추가 여유 공간
+            
+            let totalRows = tempRows + magRows + extraRows;
+            let logHeight = (totalRows * 1.4) + "em";
+            
+            console.log("Length: " + totalRows);
+
+            document.getElementById("log").style.height = logHeight;
+            document.getElementById("status").style.height = logHeight;
+        }
+        
+        function updateStatus(data) {
+    TEMP_SLAVE_COUNT = data.t.sla;
+    TEMP_SENSOR_COUNT = data.t.sa;
+    MAG_SLAVE_COUNT = data.m.sla;
+    MAG_SENSOR_COUNT = data.m.sa;
+
+    // 배열 데이터 가져오기
+    ALIVE_TEMP_SLAVE = data.t.ats;
+    ALIVE_MAG_SLAVE = data.m.ams;
+
+    adjustHeight();
+
+    function formatMeasuredTime(data) {
+        let timeInSeconds = (data.c * data.d.ati) / 1000;
+        if (timeInSeconds < 60) {
+            return `${timeInSeconds.toFixed(1)} sec`;
+        } else if (timeInSeconds < 3600) {
+            return `${(timeInSeconds / 60).toFixed(1)} min`;
+        } else if (timeInSeconds < 86400) {
+            return `${(timeInSeconds / 3600).toFixed(1)} hour`;
+        } else {
+            return `${(timeInSeconds / 86400).toFixed(1)} day`;
+        }
+    }
+
+    let statusText = `
+Version: ${data.v}
+
+[Temperature]
+Slave Count:   ${data.t.sla}
+Sensors/Slave: ${data.t.sa}
+
+[Magnetic]
+Slave Count:   ${data.m.sla}
+Sensors/Slave: ${data.m.sa}
+
+[Measurement]
+Measuring state: <span style="color: ${data.i ? 'red' : 'black'};">${data.i ? "ON" : "OFF"}</span>
+
+Sampling Time:                  ${data.d.ati / 1000} sec          
+Measured Data / Max data(N):    ${data.c} / ${data.d.m}
+Measured Data Time:             ${formatMeasuredTime(data)}
+    `;
+
+    let statusElement = document.getElementById("status");
+    statusElement.innerHTML = statusText.trim();
+}
+        
+        function updateLog(parsedData) {
+            const unixTime = parsedData.time;
+            const formattedTime = new Date(unixTime * 1000).toLocaleString();
+
+            console.log("Result type:", typeof parsedData.result);
+            console.log("Result content:", parsedData.result);
+
+            let values = [];
+
+            // 결과값이 배열인지 확인 후 변환
+            if (Array.isArray(parsedData.result)) {
+                values = parsedData.result.map(Number);
+            } else {
+                console.error("Unexpected data format:", parsedData.result);
+                return;
+            }
+
+            let logEntry = `[${formattedTime}]\n\n`;
+            let index = 0;
+
+            // 부호 변환 함수 (2의 보수 처리)
+            function toSigned16(value) {
+                return value >= 32768 ? value - 65536 : value;
+            }
+
+            // 온습도 데이터 출력
+            for (let slave = 0; slave < TEMP_SLAVE_COUNT; slave++) {
+                let isAlive = ALIVE_TEMP_SLAVE[slave] === 1;
+                let temperatureRow = "Temperature: ";
+                let humidityRow = "Humidity   : ";
+                let allZero = true; // 값이 모두 0인지 확인하는 플래그
+
+                for (let sensor = 0; sensor < TEMP_SENSOR_COUNT; sensor++) {
+                    let rawTemp = index < values.length ? toSigned16(values[index]) : 0;
+                    let rawHumid = index + 1 < values.length ? toSigned16(values[index + 1]) : 0;
+
+                    let temperature = (rawTemp / 10).toFixed(1);
+                    let humidity = (rawHumid / 10).toFixed(1);
+
+                    if (rawTemp !== 0 || rawHumid !== 0) {
+                        allZero = false;
+                    }
+
+                    temperatureRow += `<span>${temperature.padStart(6, " ")} °C</span>  `;
+                    humidityRow += `<span>${humidity.padStart(6, " ")} %</span>  `;
+
+                    index += 2;
+                }
+
+                let color = isAlive
+                    ? (allZero ? "red" : "black") // alive인데 전부 0.0이면 빨간색, 아니면 검정색
+                    : "#E0E0E0"; // dead이면 회색
+
+                logEntry += `<span style="color:${color};">[Slave ${slave + 1}]</span>\n`;
+                logEntry += `<span style="color:${color};">${temperatureRow}</span>\n`;
+                logEntry += `<span style="color:${color};">${humidityRow}</span>\n\n`;
+            }
+
+            // 변환 계수 (ADC → μT)
+            const CONVERSION_FACTOR = 0.0244;
+
+            // 자기장 데이터 출력
+            for (let slave = 0; slave < MAG_SLAVE_COUNT; slave++) {
+                let isAlive = ALIVE_MAG_SLAVE[slave] === 1;
+                let allZero = true; // 값이 모두 0인지 확인하는 플래그
+
+                // 먼저 값을 확인하여 allZero 상태를 결정
+                for (let sensor = 0; sensor < MAG_SENSOR_COUNT; sensor++) {
+                    let magX = index < values.length ? toSigned16(values[index]) : 0;
+                    let magY = index + 1 < values.length ? toSigned16(values[index + 1]) : 0;
+                    let magZ = index + 2 < values.length ? toSigned16(values[index + 2]) : 0;
+
+                    if (magX !== 0 || magY !== 0 || magZ !== 0) {
+                        allZero = false;
+                    }
+
+                    index += 3; // 데이터 인덱스 증가
+                }
+
+                // allZero 값이 결정된 후 [Slave n]을 출력
+                let slaveColor = isAlive ? (allZero ? 'red' : 'black') : '#E0E0E0';
+                logEntry += `<span style="color:${slaveColor};">[Slave ${slave + 1}]</span>\n`;
+
+                // 다시 센서 데이터를 출력하는 루프 시작
+                index -= 3 * MAG_SENSOR_COUNT; // index 초기화 (이전 루프에서 증가했으므로 다시 되돌림)
+
+                for (let sensor = 0; sensor < MAG_SENSOR_COUNT; sensor++) {
+                    let magX = index < values.length ? toSigned16(values[index]) : 0;
+                    let magY = index + 1 < values.length ? toSigned16(values[index + 1]) : 0;
+                    let magZ = index + 2 < values.length ? toSigned16(values[index + 2]) : 0;
+
+                    let magX_uT = (magX * CONVERSION_FACTOR).toFixed(2).padStart(7, " ") + " μT";
+                    let magY_uT = (magY * CONVERSION_FACTOR).toFixed(2).padStart(7, " ") + " μT";
+                    let magZ_uT = (magZ * CONVERSION_FACTOR).toFixed(2).padStart(7, " ") + " μT";
+                    let norm = Math.sqrt(magX ** 2 + magY ** 2 + magZ ** 2) * CONVERSION_FACTOR;
+                    let norm_uT = norm.toFixed(2).padStart(7, " ") + " μT";
+
+                    let color = isAlive ? (allZero ? "red" : "black") : "#E0E0E0";
+
+                    logEntry += `<span style="color:${color};">Field Strength (X, Y, Z, Norm): ${magX_uT}  ${magY_uT}  ${magZ_uT}  ${norm_uT}</span>\n`;
+
+                    index += 3; // 데이터 인덱스 증가
+                }
+
+                logEntry += "\n";
+            }
+
+
+            // 로그 데이터 저장 및 화면 출력
+            displayLogData.push(logEntry);
+            if (displayLogData.length > 10) {
+                displayLogData.shift();
+            }
+
+            document.getElementById("log").innerHTML = displayLogData.join("<br><br>");
+            document.getElementById("log").scrollTop = document.getElementById("log").scrollHeight;
+        }
+
+
+        function sendCommand() {
+            const command = document.getElementById("command-input").value.trim().toLowerCase();
+            if (!command) {
+                alert("Please enter a command.");
+                return;
+            }
+
+            if (command === "help") {
+                displayHelp();
+                return;
+            }
+
+            if (socket && socket.readyState === WebSocket.OPEN) {
+              socket.send(command);
+              document.getElementById("extra").innerText += "\n" + command;
+            } else {
+              alert("WebSocket not connected.");
+            }
+        }
+
+        function displayHelp() {
+            const helpText = `
+                <p><strong>start</strong>: Begin sensor data measurement.</p>
+
+                <p><strong>stop</strong>: Stop sensor data measurement.</p>
+                
+                <p><strong>set N</strong>: Set the maximum data entries per file. A new file is created when this limit is exceeded.</p>
+            `;
+
+            document.getElementById("extra").innerHTML += helpText.trim();
+        }
+
+
+
+        window.onload = function() {
+            connectWebSocket();
+        };
+    </script>
+</head>
+<body>
+    <nav>
+        <a href="/">Main</a>
+        <a href="/files">Files</a>
+        <a href="/update">Update</a>
+    </nav>
+
+    <h1>Data Monitor</h1>
+
+    <div class="container">
+        <div id="log" class="section">Waiting for data...</div>
+        <div id="status" class="section">Waiting for status...</div>
+    </div>
+
+    <div id="extra"></div>
+
+    <div id="command-box">
+        <input type="text" id="command-input" placeholder="Enter command (Type 'help' to see command.)">
+        <button onclick="sendCommand()">Send</button>
+    </div>
+</body>
+</html>
