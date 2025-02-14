@@ -14,8 +14,8 @@ int cur_index = 0;
 bool new_client = false;
 int client_n = 0;
 
-int alive_temp_slave[] = {0, 0, 0, 0};
-int alive_mag_slave[] = {0, 0};
+int alive_temp_slave[] = {1, 0, 1, 0};
+int alive_mag_slave[] = {1, 0};
 
 int max_counts = 259200;
 
