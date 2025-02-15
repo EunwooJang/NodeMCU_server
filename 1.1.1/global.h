@@ -5,7 +5,6 @@
 #include <Arduino.h>
 #include <SoftwareSerial.h>
 
-#include <time.h>
 #include <ESPAsyncWebServer.h>
 #include <ESP_Mail_Client.h>
 
