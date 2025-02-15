@@ -1,7 +1,7 @@
 #include "WebSocketHandler.h"
 
 // 버전 정보 (HTML 등에서 공유)
-const char *version = "1.1.1";
+const char *version = "1.1.2";
 
 // Slave 아두이노 및 센서 관련 설정
 int temp_slave_Amount = 4;   // slave 아두이노 개수
@@ -283,7 +283,6 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
   // SD UPLOAD
   server.on(
     "/sdupload", HTTP_POST, [](AsyncWebServerRequest *request) {
-      // String json = getSDInfo();                     // 최신 정보 생성
       request->send(200, "text/plain", "File uploaded");  // 최신 SD 정보 반환
     },
     [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
@@ -319,7 +318,6 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
 
       if (sd.exists(filename.c_str())) {
         if (sd.remove(filename.c_str())) {
-          // String json = getSDInfo();                     // 최신 정보 생성
           request->send(200, "text/plain", "File deleted");  // 최신 SD 정보 반환
         } else {
           request->send(500, "text/plain", "Failed to delete file on SD");

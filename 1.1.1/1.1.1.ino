@@ -4,7 +4,7 @@
 #include "DHT_multi.h"
 #include "qmc5883l_multi.h"
 
-#include "email.h"
+//#include "email.h"
 
 // HC-12 모듈을 위한 SoftwareSerial 객체
 SoftwareSerial hc12(D2, D1);
@@ -30,15 +30,10 @@ size_t prevHeap = 52400; // 초기 heap값
 static char cur_payload[512] = "";
 static char cur_status[256] = "";
 
-struct tm timeinfo;
-unsigned long unixTime;
-static unsigned long lastunixTime;
-
 void setup() {
 
   Serial.begin(115200);
   hc12.begin(9600);  // HC-12 통신 시작 (메인 함수에서 설정)
-  delay(1000);
   
   // WifiConnect 객체 생성
   WifiConnect wifi;
@@ -59,15 +54,15 @@ void setup() {
   setupWebSocket(server, ws);
   server.addHandler(&ws);
 
-  configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+  configTime(9 * 3600, 0, "kr.pool.ntp.org", "pool.ntp.org");
 
   // 서버 시작
   server.begin();
   Serial.println("HTTP server started");
 
-  sendEmail("NodeMCU Server v1.1.1", "Server Intialized");
+  // sendEmail("NodeMCU Server v1.1.1", "Server Intialized");
   
-  Serial.println(ESP.getFreeHeap());
+  prevHeap = ESP.getFreeHeap();
 }
 
 void sendStatus() {
@@ -169,7 +164,7 @@ void sendPayload(unsigned long ut) {
 
 void saveDataToSD(unsigned long unixTime, const char* d1, const char* d2, size_t d1_len, size_t d2_len) {
     if (currentlysavingFile == "") {
-        time_t rawTime = unixTime + GMT;
+        time_t rawTime = unixTime;
         struct tm* timeInfo = localtime(&rawTime);
 
         char formattedTime[30];
@@ -205,7 +200,9 @@ void loop() {
   unsigned long currentTime = millis();
 
   if (ESP.getFreeHeap() < prevHeap) {
-    Serial.println(ESP.getFreeHeap());
+    Serial.print(ESP.getFreeHeap());
+    Serial.print(" ");
+    Serial.println(prevHeap - ESP.getFreeHeap());
     prevHeap = ESP.getFreeHeap();
   }
 
@@ -217,6 +214,10 @@ void loop() {
     
     // 측정 상태 설정
     isMeasuring = true;
+
+    struct tm timeinfo;
+    unsigned long unixTime;
+    static unsigned long lastunixTime;
 
     // 서버 시간 얻기
     if (getLocalTime(&timeinfo)) {
@@ -269,5 +270,6 @@ void loop() {
     // ws.textAll(cur_payload);
     new_client = false;
   }
-
+  
+  yield();
 }

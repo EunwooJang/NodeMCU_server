@@ -8,4 +8,3 @@ bool isUpdating = false;   // 초기값은 false
 
 // 현재 파일 이름을 저장할 배열 정의
 String currentlysavingFile = "";  // 빈 문자열로 초기화
-unsigned long GMT = 32400;

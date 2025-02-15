@@ -1,5 +1,6 @@
 #include "email.h"
 
+/*
 // SMTP 세션 설정
 SMTPSession smtp;
 Session_Config config;
@@ -29,6 +30,7 @@ void sendEmail(const char* subject, const char* messages) {
 
   // 이메일 전송
   MailClient.sendMail(&smtp, &message);
-  message.clear();
+  // message.clear();
   smtp.sendingResult.clear();
 }
+*/

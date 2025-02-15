@@ -41,7 +41,7 @@ void QMC5883LMulti::getAllSensorData() {
     if (count == 4) {
       char message[32];
       snprintf(message, sizeof(message), "Magnetic Slave ID %d fail", i);
-      sendEmail("TEST NodeMCU Server v1.1.0", message);
+      // sendEmail("TEST NodeMCU Server v1.1.0", message);
     }
   }
 }

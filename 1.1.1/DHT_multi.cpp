@@ -44,7 +44,7 @@ void DHTMulti::getAllSensorData() {
     if (count == 4) {
       char message[32];
       snprintf(message, sizeof(message), "Temperature Slave ID %d fail", i);
-      sendEmail("TEST NodeMCU Server v1.1.0", message);
+      // sendEmail("TEST NodeMCU Server v1.1.0", message);
     }
   }
 }

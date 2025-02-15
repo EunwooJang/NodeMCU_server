@@ -2,7 +2,7 @@
 #define QMC5883L_MULTI_H
 
 #include "global.h"
-#include "email.h"
+// #include "email.h"
 
 // QMC5883LMulti 클래스 정의
 class QMC5883LMulti {
