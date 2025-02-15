@@ -65,7 +65,7 @@ void setup() {
   server.begin();
   Serial.println("HTTP server started");
 
-  sendEmail("NodeMCU Server v1.1.0", "Server Intialized");
+  sendEmail("NodeMCU Server v1.1.1", "Server Intialized");
   
   Serial.println(ESP.getFreeHeap());
 }
@@ -78,7 +78,7 @@ void sendStatus() {
   offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "{");
 
   // "v": version,
-  offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"v\":%d,", version);
+  offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"v\":\"%s\",", version);
 
   // "t": { ... } 온도 관련 데이터 구성
   offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"t\":{");

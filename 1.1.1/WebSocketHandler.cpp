@@ -79,12 +79,12 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
           Serial.println(F("Stopping saving process..."));
           // 저장 중지 로직 실행
         } else if (strcmp(message, "reset") == 0) {
+          ESP.restart();
         }
       }
     }
   });
 
-  
   // GET 요청: 클라이언트가 /update 경로로 접속하면, update.html 페이지를 제공
   server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (millis() - lastRequestTime < requestInterval || isMeasuring) {
@@ -140,7 +140,6 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
         }
       }
   });
-
   
   server.on("/files", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (millis() - lastRequestTime < requestInterval || isMeasuring) {
@@ -148,9 +147,8 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
       return;
     }
     lastRequestTime = millis();
-    request->send(LittleFS, "/setup.html", "text/html");
+    request->send(LittleFS, "/update.html", "text/html");
   });
-
 
   // LittleFS LIST
   server.on("/list", HTTP_GET, [](AsyncWebServerRequest *request) {
