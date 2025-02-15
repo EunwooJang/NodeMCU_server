@@ -8,7 +8,7 @@ void sendEmail(const char* subject, const char* messages) {
   // SMTP 서버 정보 설정
   config.server.host_name = "smtp.gmail.com";
   config.server.port = 465;
-  config.login.email = "@gmail.com";
+  config.login.email = "sender@gmail.com";
   config.login.password = "PASSWORD";
   config.time.ntp_server = F("pool.ntp.org");
 
