@@ -110,7 +110,7 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
           Serial.println(F("Starting saving process..."));
           // 저장 시작 로직 실행
         } else if (strcmp(message, "stop") == 0) {
-          isSaving = true;
+          isSaving = false;
           Serial.println(F("Stopping saving process..."));
           // 저장 중지 로직 실행
         } else if (strcmp(message, "reset") == 0) {
