@@ -1,7 +1,7 @@
 #include "WifiConnect.h"
 
 void WifiConnect::connect() {
-  WiFi.begin("sorim445_2G", "earlyuniverse?");
+  WiFi.begin("SSID", "PASSWORD");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
