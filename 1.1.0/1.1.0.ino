@@ -58,7 +58,6 @@ void setup() {
     return;
   }
 
-
   setupWebSocket(server, ws);
   server.addHandler(&ws);
 
@@ -216,6 +215,7 @@ void loop() {
     dhtMulti.getAllSensorData();
     compassMulti.getAllSensorData();
 
+    // 클라이언트 접속 시
     if (client_n > 0) {
 
       strncpy(cur_status, sendStatus(), sizeof(cur_status) - 1);
@@ -225,7 +225,7 @@ void loop() {
       cur_payload[sizeof(cur_payload) - 1] = '\0';
     }
     
-
+    // 저장 중일 시
     if (isSaving) {
       if (cur_index >= max_counts) {
         currentlysavingFile = "";

@@ -5,8 +5,8 @@
 
 class WifiConnect {
 private:
-  const char* ssid = "SSID";
-  const char* password = "PASSWORD";
+  const char* ssid = "sorim445_2G";
+  const char* password = "earlyuniverse?";
 
 public:
   void connect();
