@@ -147,7 +147,7 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
       return;
     }
     lastRequestTime = millis();
-    request->send(LittleFS, "/update.html", "text/html");
+    request->send(LittleFS, "/setup.html", "text/html");
   });
 
   // LittleFS LIST
