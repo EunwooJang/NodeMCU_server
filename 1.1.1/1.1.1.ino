@@ -236,12 +236,6 @@ void loop() {
     // 센서 데이터 얻기
     dhtMulti.getAllSensorData();
     compassMulti.getAllSensorData();
-
-    // 클라이언트 접속 시
-    if (client_n > 0) {
-      sendStatus();
-      sendPayload(lastunixTime);
-    }
     
     // 저장 중일 시
     if (isSaving) {
@@ -261,6 +255,12 @@ void loop() {
       switched = 0;
     }
 
+    // 클라이언트 접속 시
+    if (client_n > 0) {
+      sendStatus();
+      sendPayload(lastunixTime);
+    }
+    
     // 측정상태 해제
     isMeasuring = false;
   }
