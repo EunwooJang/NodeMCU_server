@@ -20,6 +20,6 @@ private:
   bool validateReceivedData(const char* data, uint8_t slaveId);
 };
 
-extern SoftwareSerial hc12;  // 메인에서 선언된 hc12 사용
+extern SoftwareSerial hc12;
 
 #endif

@@ -41,13 +41,13 @@ void setup() {
 
   // SPIFFS 파일 시스템 초기화
   if (!LittleFS.begin()) {
-    Serial.println("LittleFS Intial Failed");
+    // Serial.println("LittleFS Intial Failed");
     return;
   }
 
   // SD 파일 시스템 초기화
   if (!sd.begin(15, SD_SCK_MHZ(25))) {
-    Serial.println("SD card initialization failed!");
+    // Serial.println("SD card initialization failed!");
     return;
   }
 
@@ -173,7 +173,7 @@ void saveDataToSD(unsigned long unixTime, const char* d1, const char* d2, size_t
         snprintf(formattedTime, sizeof(formattedTime), "%s_%d_%d_%d_%d.dat",
                  formattedTime, temp_slave_Amount, temp_sensor_Amount, magnetic_slave_Amount, magnetic_sensor_Amount);
         currentlysavingFile = formattedTime;
-        Serial.println("새 파일 생성: " + currentlysavingFile);
+        // Serial.println("새 파일 생성: " + currentlysavingFile);
     }
 
     size_t totalSize = 4 + d1_len + d2_len; // Unix Time(4바이트) + d1 + d2 크기
@@ -185,7 +185,7 @@ void saveDataToSD(unsigned long unixTime, const char* d1, const char* d2, size_t
 
     File32 file = sd.open(currentlysavingFile.c_str(), O_RDWR | O_CREAT | O_APPEND);
     if (!file) {
-        Serial.println("파일 열기 실패");
+        // Serial.println("파일 열기 실패");
         return;
     }
     

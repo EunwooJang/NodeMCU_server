@@ -15,7 +15,6 @@ DHTMulti::DHTMulti(uint8_t slaveAmount, uint8_t sensorAmount, int* arr)
   memset(combinedData, 0, 4 * sensorAmount * slaveAmount);
 }
 
-
 void DHTMulti::getAllSensorData() {
 
   memset(combinedData, 0, 4 * sensorAmount * slaveAmount);
@@ -70,7 +69,6 @@ bool DHTMulti::requestSensorData(uint8_t slaveId, char* buffer) {
 
   return false;  // 타임아웃
 }
-
 
 // 데이터 유효성 검사
 bool DHTMulti::validateReceivedData(const char* data, uint8_t slaveId) {

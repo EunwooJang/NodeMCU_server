@@ -1,7 +1,7 @@
 #include "WebSocketHandler.h"
 
 // 버전 정보 (HTML 등에서 공유)
-const char *version = "1.1.2";
+const char *version = "1.1.1";
 
 // Slave 아두이노 및 센서 관련 설정
 int temp_slave_Amount = 4;   // slave 아두이노 개수
@@ -54,13 +54,13 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
     if (type == WS_EVT_CONNECT) {
       new_client = true;
       client_n++;
-      Serial.println(F("WebSocket Client Connected"));
-      Serial.println(client_n);
+      //Serial.println(F("WebSocket Client Connected"));
+      //Serial.println(client_n);
 
     } else if (type == WS_EVT_DISCONNECT) {
       client_n--;
-      Serial.println(F("WebSocket Client Disconnected"));
-      Serial.println(client_n);
+      //Serial.println(F("WebSocket Client Disconnected"));
+      //Serial.println(client_n);
 
     } else if (type == WS_EVT_DATA) {
       AwsFrameInfo *info = (AwsFrameInfo *)arg;
@@ -72,11 +72,11 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
         // 예시: 받은 메시지에 따라 동작 분기
         if (strcmp(message, "start") == 0) {
           isSaving = true;
-          Serial.println(F("Starting saving process..."));
+          // Serial.println(F("Starting saving process..."));
           // 저장 시작 로직 실행
         } else if (strcmp(message, "stop") == 0) {
           isSaving = false;
-          Serial.println(F("Stopping saving process..."));
+          // Serial.println(F("Stopping saving process..."));
           // 저장 중지 로직 실행
         } else if (strcmp(message, "reset") == 0) {
           ESP.restart();
@@ -111,7 +111,7 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
 
       // 첫 번째 청크(파일의 시작)인 경우 초기화 작업 수행
       if (index == 0) {
-        Serial.println(F("Update started"));
+        // Serial.println(F("Update started"));
         update_content_len = request->contentLength();
 
         // 비동기 OTA 업데이트 모드 활성화
@@ -134,7 +134,7 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
         if (!Update.end(true)) {
           Update.printError(Serial);
         } else {
-          Serial.println(F("Update complete"));
+          // Serial.println(F("Update complete"));
           Serial.flush();
           ESP.restart();
         }
@@ -193,7 +193,7 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
       if (!index) {
         File file = LittleFS.open("/" + filename, "w");
         if (!file) {
-          Serial.println(F("Failed to open file for writing"));
+          // Serial.println(F("Failed to open file for writing"));
           return;
         }
         file.close();
@@ -289,7 +289,7 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
       if (!index) {
         SdFile file;
         if (!file.open(filename.c_str(), O_WRONLY | O_CREAT | O_TRUNC)) {
-          Serial.println(F("Failed to open file for writing on SD"));
+          // Serial.println(F("Failed to open file for writing on SD"));
           return;
         }
         file.close();
@@ -358,7 +358,7 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
       if (sd.exists(filename.c_str())) {
         SdFile file;
         if (file.open(filename.c_str(), O_RDONLY)) {
-          Serial.println(F("File exists and opened. Streaming file..."));
+          // Serial.println(F("File exists and opened. Streaming file..."));
 
           // 파일 크기 가져오기
           size_t fileSize = file.fileSize();
@@ -388,11 +388,11 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
           file.close();
 
         } else {
-          Serial.println(F("Failed to open file for streaming."));
+          // Serial.println(F("Failed to open file for streaming."));
           request->send(500, "text/plain", "Failed to open file on SD");
         }
       } else {
-        Serial.println(F("File not found on SD card."));
+        // Serial.println(F("File not found on SD card."));
         request->send(404, "text/plain", "File not found on SD");
       }
 

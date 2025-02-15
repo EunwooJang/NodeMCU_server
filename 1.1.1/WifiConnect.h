@@ -4,9 +4,6 @@
 #include "global.h"
 
 class WifiConnect {
-private:
-  const char* ssid = "SSID";
-  const char* password = "PASSWORD";
 
 public:
   void connect();
