@@ -193,10 +193,8 @@ void loop() {
     Serial.println(ESP.getFreeHeap());
     prevHeap = ESP.getFreeHeap();
   }
-
-  if (ws.count() > 0) {
-    ws.cleanupClients();
-  }
+  
+  ws.cleanupClients();
 
   if ((currentTime - lastWebSocketSendTime >= acquisitiontimeInterval) && !isUpdating) {
     
