@@ -3,16 +3,13 @@
 <head>
     <title>File Manager</title>
     <style>
-        /* CSS 스타일은 그대로 유지 */
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
-            background-color: #f9f9f9;
-        }
+            background-color: #f9f9f9;}
         h1 {
             color: #333;
-            text-align: center;
-        }
+            text-align: center;}
         button {
             padding: 10px 20px;
             margin: 10px 0;
@@ -20,57 +17,47 @@
             color: #fff;
             border: none;
             border-radius: 5px;
-            cursor: pointer;
-        }
+            cursor: pointer;}
         button:hover {
-            background-color: #0056b3;
-        }
+            background-color: #0056b3;}
         ul {
             list-style-type: none;
-            padding: 0;
-        }
+            padding: 0;}
         li {
             margin: 5px 0;
             padding: 10px;
             background: #ffffff;
             border: 1px solid #ddd;
-            border-radius: 5px;
-        }
+            border-radius: 5px;}
         .container {
             display: flex;
             flex-direction: column;
-            gap: 20px;
-        }
+            gap: 20px;}
         .row {
             display: flex;
-            gap: 20px;
-        }
+            gap: 20px;}
         .half {
             flex: 1;
             background: #fff;
             border: 1px solid #ddd;
             border-radius: 10px;
-            padding: 20px;
-        }
+            padding: 20px;}
         .third {
             flex: 1;
             background: #fff;
             border: 1px solid #ddd;
             border-radius: 10px;
             padding: 20px;
-            text-align: center;
-        }
+            text-align: center;}
         input[type="file"], input[type="text"] {
             margin: 10px 0;
             padding: 10px;
             width: calc(100% - 22px);
             border: 1px solid #ddd;
-            border-radius: 5px;
-        }
+            border-radius: 5px;}
         .file-list ul {
             max-height: 200px;
-            overflow-y: auto;
-        }
+            overflow-y: auto;}
     </style>
 </head>
 <body>
@@ -159,23 +146,20 @@
     </div>
 
     <script>
-        // 전역 변수로 총 용량을 저장 (한 번만 불러옴)
         let spiffsTotalGlobal = 0;
         let sdTotalGlobal = 0;
 
-        // SPIFFS 총 용량 및 파일 리스트 정보 가져오기 (총 용량은 페이지 로드시 한 번만)
         function fetchSPIFFSInfo() {
             fetch('/spiffs')
                 .then(response => response.json())
                 .then(data => {
-                    spiffsTotalGlobal = data.total; // 총 용량 저장
+                    spiffsTotalGlobal = data.total;
                     document.getElementById('spiffsTotal').textContent = spiffsTotalGlobal;
                     fetchSPIFFSFileList();
                 })
                 .catch(error => console.error('Error fetching SPIFFS info:', error));
         }
 
-        // SPIFFS 파일 리스트만 갱신 (총 용량은 전역 변수 사용)
         function fetchSPIFFSFileList() {
             fetch('/list')
                 .then(response => response.json())
@@ -199,7 +183,6 @@
                 .catch(error => console.error('Error fetching SPIFFS file list:', error));
         }
 
-        // SD 카드 총 용량 및 파일 리스트 정보 가져오기 (총 용량은 페이지 로드시 한 번만)
         function fetchSDInfo() {
             fetch('/sdinfo')
                 .then(response => response.json())
@@ -211,7 +194,6 @@
                 .catch(error => console.error('Error fetching SD info:', error));
         }
 
-        // SD 파일 리스트만 갱신 (총 용량은 전역 변수 사용)
         function fetchSDFileList() {
             fetch('/sdlist')
                 .then(response => response.json())
@@ -234,7 +216,6 @@
                 .catch(error => console.error('Error fetching SD file list:', error));
         }
 
-        // 파일 업로드 함수 (총 용량 갱신 제거, 파일 리스트만 갱신)
         function uploadFilesWithProgress(endpoint, inputId, fetchFileList, progressId) {
             const fileInput = document.getElementById(inputId);
             const files = fileInput.files;
@@ -256,7 +237,7 @@
                 if (xhr.status === 200) {
                     alert('Files uploaded successfully!');
                     document.getElementById(progressId).textContent = 'Upload complete!';
-                    fetchFileList(); // 총 용량은 변하지 않으므로 파일 리스트만 갱신
+                    fetchFileList();
                 } else {
                     alert('Upload failed.');
                 }
@@ -265,7 +246,6 @@
             xhr.send(formData);
         }
 
-        // 파일 다운로드 함수 (변경 없음)
         function downloadFileWithProgress(endpoint, inputId, progressId) {
             let filename = document.getElementById(inputId).value;
             if (!filename) {
@@ -306,7 +286,6 @@
             xhr.send();
         }
 
-        // 파일 삭제 함수 (총 용량 갱신 제거, 파일 리스트만 갱신)
         function deleteFileWithProgress(endpoint, inputId, fetchFileList, progressId) {
             let filename = document.getElementById(inputId).value;
             if (!filename.startsWith('/')) {
@@ -327,7 +306,7 @@
                 if (xhr.status === 200) {
                     alert('File deleted successfully!');
                     document.getElementById(progressId).textContent = 'Delete complete!';
-                    fetchFileList(); // 파일 리스트만 갱신
+                    fetchFileList();
                 } else {
                     alert('Delete failed.');
                 }
@@ -336,7 +315,6 @@
             xhr.send(`filename=${filename}`);
         }
 
-        // 초기 데이터 로드 (총 용량 및 파일 리스트 한 번 불러옴)
         fetchSPIFFSInfo();
         fetchSDInfo();
     </script>
