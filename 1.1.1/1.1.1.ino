@@ -54,7 +54,6 @@ void setup() {
   }
 
   setupWebSocket(server, ws);
-  server.addHandler(&ws);
 
   configTime(9 * 3600, 0, "kr.pool.ntp.org", "pool.ntp.org");
 
@@ -255,10 +254,10 @@ void loop() {
     isMeasuring = false;
   }
   
-  if (new_client) {
+  if (isneeddata) {
     ws.textAll(cur_status);
     ws.textAll(cur_payload);
-    new_client = false;
+    isneeddata = false;
   }
   
   yield();

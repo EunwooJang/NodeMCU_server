@@ -20,7 +20,8 @@ extern int cur_index;
 //데이터 관련 변수(초기 설정)
 extern unsigned long acquisitiontimeInterval;
 
-extern bool new_client;
+extern bool isneeddata;
+
 extern int client_n;
 
 extern bool alive_temp_slave[];

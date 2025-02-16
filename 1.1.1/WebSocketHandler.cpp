@@ -11,7 +11,9 @@ int magnetic_slave_Amount = 2;   // slave 아두이노 개수
 int magnetic_sensor_Amount = 1;  // 각 아두이노당 센서 개수
 
 int cur_index = 0;
-bool new_client = false;
+
+bool isneeddata = false;
+
 int client_n = 0;
 
 bool alive_temp_slave[] = {false, false, false, false};
@@ -48,11 +50,13 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
     }
   });
 
+  server.addHandler(&ws);
+
   // WebSocket 이벤트 핸들러 등록 ("/ws" 경로는 ws 객체가 생성될 때 지정됨)
   ws.onEvent(
     [](AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
     if (type == WS_EVT_CONNECT) {
-      new_client = true;
+      isneeddata = true;
       client_n++;
       DEBUG_PRINT(F("WebSocket Client Connected"));
       DEBUG_PRINT(" ");
