@@ -3,6 +3,7 @@
 <head>
     <title>File Manager</title>
     <style>
+        /* CSS 스타일은 그대로 유지 */
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
@@ -100,7 +101,7 @@
             <div class="third file-actions">
                 <h2>SPIFFS Upload</h2>
                 <input type="file" id="spiffsFileInput" multiple>
-                <button onclick="uploadFilesWithProgress('/upload', 'spiffsFileInput', fetchSPIFFSInfo, fetchSPIFFSFileList, 'spiffsUploadProgress')">Upload</button>
+                <button onclick="uploadFilesWithProgress('/upload', 'spiffsFileInput', fetchSPIFFSFileList, 'spiffsUploadProgress')">Upload</button>
                 <div id="spiffsUploadProgress">Progress: 0%</div>
             </div>
 
@@ -114,7 +115,7 @@
             <div class="third file-actions">
                 <h2>SPIFFS Delete</h2>
                 <input type="text" id="spiffsDeleteFilename" placeholder="Enter filename to delete">
-                <button onclick="deleteFileWithProgress('/delete', 'spiffsDeleteFilename', fetchSPIFFSInfo, fetchSPIFFSFileList, 'spiffsDeleteProgress')">Delete</button>
+                <button onclick="deleteFileWithProgress('/delete', 'spiffsDeleteFilename', fetchSPIFFSFileList, 'spiffsDeleteProgress')">Delete</button>
                 <div id="spiffsDeleteProgress">Progress: 0%</div>
             </div>
         </div>
@@ -137,7 +138,7 @@
             <div class="third file-actions">
                 <h2>SD Upload</h2>
                 <input type="file" id="sdFileInput" multiple>
-                <button onclick="uploadFilesWithProgress('/sdupload', 'sdFileInput', fetchSDInfo, fetchSDFileList, 'sdUploadProgress')">Upload</button>
+                <button onclick="uploadFilesWithProgress('/sdupload', 'sdFileInput', fetchSDFileList, 'sdUploadProgress')">Upload</button>
                 <div id="sdUploadProgress">Progress: 0%</div>
             </div>
 
@@ -151,93 +152,96 @@
             <div class="third file-actions">
                 <h2>SD Delete</h2>
                 <input type="text" id="sdDeleteFilename" placeholder="Enter filename to delete">
-                <button onclick="deleteFileWithProgress('/sddelete', 'sdDeleteFilename', fetchSDInfo, fetchSDFileList, 'sdDeleteProgress')">Delete</button>
+                <button onclick="deleteFileWithProgress('/sddelete', 'sdDeleteFilename', fetchSDFileList, 'sdDeleteProgress')">Delete</button>
                 <div id="sdDeleteProgress">Progress: 0%</div>
             </div>
         </div>
     </div>
 
     <script>
+        // 전역 변수로 총 용량을 저장 (한 번만 불러옴)
+        let spiffsTotalGlobal = 0;
+        let sdTotalGlobal = 0;
+
+        // SPIFFS 총 용량 및 파일 리스트 정보 가져오기 (총 용량은 페이지 로드시 한 번만)
         function fetchSPIFFSInfo() {
-            fetch('/spiffs')  // 서버에서 SPIFFS 총 용량만 가져옴
+            fetch('/spiffs')
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById('spiffsTotal').textContent = data.total; // 'total'만 사용
-                    fetchSPIFFSFileList(data.total);  // 총 용량을 넘겨서 사용 용량 계산
+                    spiffsTotalGlobal = data.total; // 총 용량 저장
+                    document.getElementById('spiffsTotal').textContent = spiffsTotalGlobal;
+                    fetchSPIFFSFileList();
                 })
                 .catch(error => console.error('Error fetching SPIFFS info:', error));
         }
 
-        function fetchSPIFFSFileList(spiffsTotal) {
+        // SPIFFS 파일 리스트만 갱신 (총 용량은 전역 변수 사용)
+        function fetchSPIFFSFileList() {
             fetch('/list')
                 .then(response => response.json())
                 .then(data => {
                     const fileList = document.getElementById('spiffsFileList');
                     fileList.innerHTML = '';
 
-                    let totalUsed = 0;  // 사용된 용량 초기화
-
+                    let totalUsed = 0;
                     data.files.forEach(file => {
                         const li = document.createElement('li');
-                        const fileName = file.name.startsWith('/') ? file.name.slice(1) : file.name; // '/' 제거
+                        const fileName = file.name.startsWith('/') ? file.name.slice(1) : file.name;
                         li.textContent = `${fileName} (${file.size} bytes)`;
                         fileList.appendChild(li);
-                        totalUsed += file.size;  // 파일 크기를 합산하여 사용된 용량 계산
+                        totalUsed += file.size;
                     });
 
-                    console.log("SPIFFS Total:", spiffsTotal);
-                    console.log("SPIFFS Used:", totalUsed);
-
-                    document.getElementById('spiffsUsed').textContent = totalUsed;  // 사용된 용량 표시
-                    let percentage = (spiffsTotal > 0) ? (totalUsed / spiffsTotal) * 100 : 0;  // 사용률 계산
-                    document.getElementById('spiffsPercentage').textContent = percentage.toFixed(4);  // 소수점 4자리까지 표시
+                    document.getElementById('spiffsUsed').textContent = totalUsed;
+                    let percentage = (spiffsTotalGlobal > 0) ? (totalUsed / spiffsTotalGlobal) * 100 : 0;
+                    document.getElementById('spiffsPercentage').textContent = percentage.toFixed(4);
                 })
                 .catch(error => console.error('Error fetching SPIFFS file list:', error));
         }
 
-
+        // SD 카드 총 용량 및 파일 리스트 정보 가져오기 (총 용량은 페이지 로드시 한 번만)
         function fetchSDInfo() {
-            fetch('/sdinfo')  // 서버에서 SD 카드 총 용량만 가져옴
+            fetch('/sdinfo')
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById('sdTotal').textContent = data.total;
-                    fetchSDFileList(data.total);  // 총 용량을 fetchSDFileList로 넘겨서 사용 용량 계산
-                });
+                    sdTotalGlobal = data.total; // 총 용량 저장
+                    document.getElementById('sdTotal').textContent = sdTotalGlobal;
+                    fetchSDFileList();
+                })
+                .catch(error => console.error('Error fetching SD info:', error));
         }
 
-        function fetchSDFileList(sdTotal) {
+        // SD 파일 리스트만 갱신 (총 용량은 전역 변수 사용)
+        function fetchSDFileList() {
             fetch('/sdlist')
                 .then(response => response.json())
                 .then(data => {
                     const fileList = document.getElementById('sdFileList');
                     fileList.innerHTML = '';
 
-                    let totalUsed = 0;  // 사용된 용량 초기화
-
+                    let totalUsed = 0;
                     data.files.forEach(file => {
                         const li = document.createElement('li');
                         li.textContent = `${file.name} (${file.size} bytes)`;
                         fileList.appendChild(li);
-                        totalUsed += file.size;  // 파일 크기를 합산하여 사용된 용량 계산
+                        totalUsed += file.size;
                     });
-                    console.log(sdTotal);
-                    console.log(totalUsed);
 
-                    document.getElementById('sdUsed').textContent = totalUsed;  // 사용된 용량 표시
-                    let percentage = (totalUsed / sdTotal) * 100;  // 사용률 계산
-                    document.getElementById('sdPercentage').textContent = percentage.toFixed(4);  // 소수점 4자리까지 표시
-                });
+                    document.getElementById('sdUsed').textContent = totalUsed;
+                    let percentage = (sdTotalGlobal > 0) ? (totalUsed / sdTotalGlobal) * 100 : 0;
+                    document.getElementById('sdPercentage').textContent = percentage.toFixed(4);
+                })
+                .catch(error => console.error('Error fetching SD file list:', error));
         }
 
-        function uploadFilesWithProgress(endpoint, inputId, fetchInfo, fetchFileList, progressId) {
+        // 파일 업로드 함수 (총 용량 갱신 제거, 파일 리스트만 갱신)
+        function uploadFilesWithProgress(endpoint, inputId, fetchFileList, progressId) {
             const fileInput = document.getElementById(inputId);
             const files = fileInput.files;
             const formData = new FormData();
-
             for (let i = 0; i < files.length; i++) {
                 formData.append('files[]', files[i]);
             }
-
             const xhr = new XMLHttpRequest();
             xhr.open('POST', endpoint, true);
         
@@ -252,8 +256,7 @@
                 if (xhr.status === 200) {
                     alert('Files uploaded successfully!');
                     document.getElementById(progressId).textContent = 'Upload complete!';
-                    fetchInfo();
-                    fetchFileList();
+                    fetchFileList(); // 총 용량은 변하지 않으므로 파일 리스트만 갱신
                 } else {
                     alert('Upload failed.');
                 }
@@ -262,18 +265,16 @@
             xhr.send(formData);
         }
 
+        // 파일 다운로드 함수 (변경 없음)
         function downloadFileWithProgress(endpoint, inputId, progressId) {
             let filename = document.getElementById(inputId).value;
-
             if (!filename) {
                 alert('Please enter a filename to download.');
                 return;
             }
-
             if (!filename.startsWith('/')) {
                 filename = '/' + filename;
             }
-
             const xhr = new XMLHttpRequest();
             xhr.open('GET', `${endpoint}?filename=${filename}`, true);
             xhr.responseType = 'blob';
@@ -305,16 +306,15 @@
             xhr.send();
         }
 
-        function deleteFileWithProgress(endpoint, inputId, fetchInfo, fetchFileList, progressId) {
+        // 파일 삭제 함수 (총 용량 갱신 제거, 파일 리스트만 갱신)
+        function deleteFileWithProgress(endpoint, inputId, fetchFileList, progressId) {
             let filename = document.getElementById(inputId).value;
             if (!filename.startsWith('/')) {
                 filename = '/' + filename;
             }
-
             const xhr = new XMLHttpRequest();
             xhr.open('POST', endpoint, true);
             xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-
 
             xhr.onprogress = function (event) {
                 if (event.lengthComputable) {
@@ -327,8 +327,7 @@
                 if (xhr.status === 200) {
                     alert('File deleted successfully!');
                     document.getElementById(progressId).textContent = 'Delete complete!';
-                    fetchInfo();
-                    fetchFileList();
+                    fetchFileList(); // 파일 리스트만 갱신
                 } else {
                     alert('Delete failed.');
                 }
@@ -337,8 +336,7 @@
             xhr.send(`filename=${filename}`);
         }
 
-
-        // 초기 데이터 로드
+        // 초기 데이터 로드 (총 용량 및 파일 리스트 한 번 불러옴)
         fetchSPIFFSInfo();
         fetchSDInfo();
     </script>
