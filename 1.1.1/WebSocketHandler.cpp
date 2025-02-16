@@ -16,8 +16,8 @@ bool isneeddata = false;
 
 int client_n = 0;
 
-bool alive_temp_slave[] = {false, false, false, false};
-bool alive_mag_slave[] = {false, false};
+bool alive_temp_slave[] = {true, false, true, false};
+bool alive_mag_slave[] = {true, false};
 
 int max_counts = 259200;
 unsigned long acquisitiontimeInterval = 10000;  // 데이터 수집 주기 (ms)
