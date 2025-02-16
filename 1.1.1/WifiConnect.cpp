@@ -1,11 +1,12 @@
 #include "WifiConnect.h"
 
 void WifiConnect::connect() {
-  WiFi.begin("SSID", "PASSWORD");
+  // WiFi.begin("sorim445_2G", "earlyuniverse?");
+  WiFi.begin("U+Net67B0", "physical3!4");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
-    Serial.print(".");
+    DEBUG_PRINT(".");
   }
-  Serial.print("IP Address: ");
-  Serial.println(WiFi.localIP());
+  DEBUG_PRINTLN("IP Address: ");
+  DEBUG_PRINTLN(WiFi.localIP());
 }

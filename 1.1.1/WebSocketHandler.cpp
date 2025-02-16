@@ -14,8 +14,8 @@ int cur_index = 0;
 bool new_client = false;
 int client_n = 0;
 
-int alive_temp_slave[] = {1, 0, 1, 0};
-int alive_mag_slave[] = {0, 0};
+bool alive_temp_slave[] = {false, false, false, false};
+bool alive_mag_slave[] = {false, false};
 
 int max_counts = 259200;
 unsigned long acquisitiontimeInterval = 10000;  // 데이터 수집 주기 (ms)
@@ -54,13 +54,15 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
     if (type == WS_EVT_CONNECT) {
       new_client = true;
       client_n++;
-      //Serial.println(F("WebSocket Client Connected"));
-      //Serial.println(client_n);
+      DEBUG_PRINT(F("WebSocket Client Connected"));
+      DEBUG_PRINT(" ");
+      DEBUG_PRINTLN(client_n);
 
     } else if (type == WS_EVT_DISCONNECT) {
       client_n--;
-      //Serial.println(F("WebSocket Client Disconnected"));
-      //Serial.println(client_n);
+      DEBUG_PRINT(F("WebSocket Client Disconnected"));
+      DEBUG_PRINT(" ");
+      DEBUG_PRINTLN(client_n);
 
     } else if (type == WS_EVT_DATA) {
       AwsFrameInfo *info = (AwsFrameInfo *)arg;
@@ -69,15 +71,17 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
         memcpy(message, data, len);
         message[len] = '\0';  // 문자열 종료
 
-        // 예시: 받은 메시지에 따라 동작 분기
+        // 저장 시작 로직 실행
         if (strcmp(message, "start") == 0) {
           isSaving = true;
-          // Serial.println(F("Starting saving process..."));
-          // 저장 시작 로직 실행
+          DEBUG_PRINTLN(F("Starting saving process..."));
+
+        // 저장 중지 로직 실행  
         } else if (strcmp(message, "stop") == 0) {
           isSaving = false;
-          // Serial.println(F("Stopping saving process..."));
-          // 저장 중지 로직 실행
+          DEBUG_PRINTLN(F("Stopping saving process..."));
+          
+        // 기기 초기화
         } else if (strcmp(message, "reset") == 0) {
           ESP.restart();
         }
@@ -111,7 +115,7 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
 
       // 첫 번째 청크(파일의 시작)인 경우 초기화 작업 수행
       if (index == 0) {
-        // Serial.println(F("Update started"));
+        DEBUG_PRINTLN(F("Update started"));
         update_content_len = request->contentLength();
 
         // 비동기 OTA 업데이트 모드 활성화
@@ -134,7 +138,7 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
         if (!Update.end(true)) {
           Update.printError(Serial);
         } else {
-          // Serial.println(F("Update complete"));
+          DEBUG_PRINTLN(F("Update complete"));
           Serial.flush();
           ESP.restart();
         }
@@ -193,7 +197,7 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
       if (!index) {
         File file = LittleFS.open("/" + filename, "w");
         if (!file) {
-          // Serial.println(F("Failed to open file for writing"));
+          DEBUG_PRINTLN(F("Failed to open file for writing"));
           return;
         }
         file.close();
@@ -289,7 +293,7 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
       if (!index) {
         SdFile file;
         if (!file.open(filename.c_str(), O_WRONLY | O_CREAT | O_TRUNC)) {
-          // Serial.println(F("Failed to open file for writing on SD"));
+          DEBUG_PRINTLN(F("Failed to open file for writing on SD"));
           return;
         }
         file.close();
@@ -358,7 +362,7 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
       if (sd.exists(filename.c_str())) {
         SdFile file;
         if (file.open(filename.c_str(), O_RDONLY)) {
-          // Serial.println(F("File exists and opened. Streaming file..."));
+          DEBUG_PRINTLN(F("File exists and opened. Streaming file..."));
 
           // 파일 크기 가져오기
           size_t fileSize = file.fileSize();
@@ -388,11 +392,11 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
           file.close();
 
         } else {
-          // Serial.println(F("Failed to open file for streaming."));
+          DEBUG_PRINTLN(F("Failed to open file for streaming."));
           request->send(500, "text/plain", "Failed to open file on SD");
         }
       } else {
-        // Serial.println(F("File not found on SD card."));
+        DEBUG_PRINTLN(F("File not found on SD card."));
         request->send(404, "text/plain", "File not found on SD");
       }
 

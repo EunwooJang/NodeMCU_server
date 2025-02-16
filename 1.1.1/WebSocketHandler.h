@@ -23,8 +23,8 @@ extern unsigned long acquisitiontimeInterval;
 extern bool new_client;
 extern int client_n;
 
-extern int alive_temp_slave[];
-extern int alive_mag_slave[];
+extern bool alive_temp_slave[];
+extern bool alive_mag_slave[];
 
 extern int max_counts;
 

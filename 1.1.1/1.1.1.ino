@@ -4,8 +4,6 @@
 #include "DHT_multi.h"
 #include "qmc5883l_multi.h"
 
-//#include "email.h"
-
 // HC-12 모듈을 위한 SoftwareSerial 객체
 SoftwareSerial hc12(D2, D1);
 
@@ -15,24 +13,28 @@ DHTMulti dhtMulti(temp_slave_Amount, temp_sensor_Amount, alive_temp_slave);
 // QMC5883LMulti 객체 생성
 QMC5883LMulti compassMulti(magnetic_slave_Amount, magnetic_sensor_Amount, alive_mag_slave);
 
-AsyncWebServer server(80);
-AsyncWebSocket ws("/ws");
+// SD 카드 객체
+SdFat sd;
 
-SdFat sd;  // SD 카드 객체
+static AsyncWebServer server(80);
+static AsyncWebSocket ws("/ws");
 
-int switched = 0;
+size_t prevHeap = 52400; // 초기 heap값
+
+bool switched = false; // SD 파일 전환 여부
 
 size_t len1 = 4 * temp_slave_Amount * temp_sensor_Amount;
 size_t len2 = 6 * magnetic_slave_Amount * magnetic_sensor_Amount;
 size_t total_len = len1 + len2;
-size_t prevHeap = 52400; // 초기 heap값
 
 static char cur_payload[512] = "";
 static char cur_status[256] = "";
 
 void setup() {
 
-  Serial.begin(115200);
+  DEBUG_BEGIN(74880); // 디버깅용 시리얼 통신 시작
+  DEBUG_PRINTLN(" ");
+
   hc12.begin(9600);  // HC-12 통신 시작 (메인 함수에서 설정)
   
   // WifiConnect 객체 생성
@@ -41,13 +43,13 @@ void setup() {
 
   // SPIFFS 파일 시스템 초기화
   if (!LittleFS.begin()) {
-    // Serial.println("LittleFS Intial Failed");
+    DEBUG_PRINTLN("LittleFS Intial Failed");
     return;
   }
 
   // SD 파일 시스템 초기화
   if (!sd.begin(15, SD_SCK_MHZ(25))) {
-    // Serial.println("SD card initialization failed!");
+    DEBUG_PRINTLN("SD card initialization failed!");
     return;
   }
 
@@ -60,7 +62,7 @@ void setup() {
   server.begin();
   Serial.println("HTTP server started");
 
-  // sendEmail("NodeMCU Server v1.1.1", "Server Intialized");
+  sendEmail("NodeMCU Server v1.1.1", "Server Intialized");
   
   prevHeap = ESP.getFreeHeap();
 }
@@ -77,11 +79,8 @@ void sendStatus() {
 
   // "t": { ... } 온도 관련 데이터 구성
   offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"t\":{");
-  // "sla": temp_slave_Amount,
   offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"sla\":%d,", temp_slave_Amount);
-  // "sa": temp_sensor_Amount,
   offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"sa\":%d,", temp_sensor_Amount);
-  // "ats": [ ... ]
   offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"ats\":[");
   for (int i = 0; i < temp_slave_Amount; i++) {
     offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "%d", alive_temp_slave[i]);
@@ -89,16 +88,12 @@ void sendStatus() {
       offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, ",");
     }
   }
-  // 온도 객체 닫기
   offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "]},");
-  
+
   // "m": { ... } 자기장 관련 데이터 구성
   offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"m\":{");
-  // "sla": magnetic_slave_Amount,
   offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"sla\":%d,", magnetic_slave_Amount);
-  // "sa": magnetic_sensor_Amount,
   offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"sa\":%d,", magnetic_sensor_Amount);
-  // "ams": [ ... ]
   offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"ams\":[");
   for (int i = 0; i < magnetic_slave_Amount; i++) {
     offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "%d", alive_mag_slave[i]);
@@ -106,27 +101,25 @@ void sendStatus() {
       offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, ",");
     }
   }
-  // 자기장 객체 닫기
   offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "]},");
-  
+
   // "i": isSaving, "c": cur_index,
   offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"i\":%d,\"c\":%d,", isSaving, cur_index);
 
-  // "d": { ... } 기타 데이터 구성
   offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"d\":{");
-  // "ati": acquisitiontimeInterval, "m": max_counts
-  offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"ati\":%d,\"m\":%d", acquisitiontimeInterval, max_counts);
-  // d 객체 닫기
+  offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"ati\":%d,\"m\":%d,", acquisitiontimeInterval, max_counts);
+  offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"heap\":%zu", prevHeap);
+
   offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "}");
 
-  // 전체 JSON 객체 닫기
   offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "}");
-  // Serial.println(cur_status);
+
+  DEBUG_PRINTLN("JSON 크기: " + String(offset));
+
   ws.textAll(cur_status);
 }
 
 void sendPayload(unsigned long ut) {
-    // static char payload[512];  // 충분한 크기의 버퍼 설정 (필요 시 조절 가능)
     size_t offset = 0;  // 현재 payload에서 문자열이 추가될 위치
 
     // JSON 시작
@@ -156,10 +149,8 @@ void sendPayload(unsigned long ut) {
 
     snprintf(cur_payload + offset, sizeof(cur_payload) - offset, "]}");
 
-    // Serial.println(cur_payload);
     ws.textAll(cur_payload);
 
-    // return payload;  // 생성된 JSON 문자열 반환
 }
 
 void saveDataToSD(unsigned long unixTime, const char* d1, const char* d2, size_t d1_len, size_t d2_len) {
@@ -173,19 +164,19 @@ void saveDataToSD(unsigned long unixTime, const char* d1, const char* d2, size_t
         snprintf(formattedTime, sizeof(formattedTime), "%s_%d_%d_%d_%d.dat",
                  formattedTime, temp_slave_Amount, temp_sensor_Amount, magnetic_slave_Amount, magnetic_sensor_Amount);
         currentlysavingFile = formattedTime;
-        // Serial.println("새 파일 생성: " + currentlysavingFile);
+        DEBUG_PRINTLN("새 파일 생성: " + currentlysavingFile);
     }
 
-    size_t totalSize = 4 + d1_len + d2_len; // Unix Time(4바이트) + d1 + d2 크기
-    uint8_t rawData[totalSize];  // 동적 할당 대신 배열 크기를 조정
+    size_t totalSize = 4 + d1_len + d2_len;
+    uint8_t rawData[totalSize];
 
-    memcpy(rawData, &unixTime, 4);         // Unix Time 복사 (4바이트)
-    memcpy(rawData + 4, d1, d1_len);       // d1 복사
-    memcpy(rawData + 4 + d1_len, d2, d2_len); // d2 복사
+    memcpy(rawData, &unixTime, 4);
+    memcpy(rawData + 4, d1, d1_len);
+    memcpy(rawData + 4 + d1_len, d2, d2_len);
 
     File32 file = sd.open(currentlysavingFile.c_str(), O_RDWR | O_CREAT | O_APPEND);
     if (!file) {
-        // Serial.println("파일 열기 실패");
+        DEBUG_PRINTLN("파일 열기 실패");
         return;
     }
     
@@ -200,9 +191,9 @@ void loop() {
   unsigned long currentTime = millis();
 
   if (ESP.getFreeHeap() < prevHeap) {
-    Serial.print(ESP.getFreeHeap());
-    Serial.print(" ");
-    Serial.println(prevHeap - ESP.getFreeHeap());
+    DEBUG_PRINT(ESP.getFreeHeap());
+    DEBUG_PRINT(" ");
+    DEBUG_PRINTLN(prevHeap - ESP.getFreeHeap());
     prevHeap = ESP.getFreeHeap();
   }
 
@@ -244,15 +235,14 @@ void loop() {
       }
       cur_index++;
       saveDataToSD(lastunixTime, dhtMulti.combinedData, compassMulti.combinedData, len1, len2);
-      switched = 1;
-
+      switched = true;
     }
     
     // 저장중은 아닐 때, 파일이름 및 저장 데이터 인덱스 초기화
-    if (!isSaving && switched == 1) {
+    if (!isSaving && switched) {
       cur_index = 0;
       currentlysavingFile = "";
-      switched = 0;
+      switched = false;
     }
 
     // 클라이언트 접속 시
@@ -260,14 +250,14 @@ void loop() {
       sendStatus();
       sendPayload(lastunixTime);
     }
-    
+
     // 측정상태 해제
     isMeasuring = false;
   }
   
   if (new_client) {
-    // ws.textAll(cur_status);
-    // ws.textAll(cur_payload);
+    ws.textAll(cur_status);
+    ws.textAll(cur_payload);
     new_client = false;
   }
   

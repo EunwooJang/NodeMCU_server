@@ -1,7 +1,23 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
-//라이브러리
+// #define ENABLE_DEBUG // 시리얼 통신 활성화
+
+#ifdef ENABLE_DEBUG
+  // 디버그 출력이 활성화된 경우, Serial.print 함수를 그대로 사용
+  #define DEBUG_BEGIN(x)     Serial.begin(x);
+  #define DEBUG_PRINT(x)     Serial.print(x)
+  #define DEBUG_PRINTLN(x)   Serial.println(x)
+ #else
+  // 디버그 출력이 비활성화된 경우, 아무 작업도 하지 않는 매크로로 대체
+  #define DEBUG_BEGIN(x)
+  #define DEBUG_PRINT(x)
+  #define DEBUG_PRINTLN(x)
+#endif
+
+// #define ENABLE_EMAIL  // 이메일 기능 활성화
+
+//외부 라이브러리
 #include <Arduino.h>
 #include <SoftwareSerial.h>
 
