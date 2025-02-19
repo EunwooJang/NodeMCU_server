@@ -86,7 +86,7 @@
         let ALIVE_MAG_SLAVE;
 
         function connectWebSocket() {
-            socket = new WebSocket("wss://" + window.location.host + "/ws");
+            socket = new WebSocket("ws://" + window.location.host + "/ws");
 
             socket.onopen = function() {
                 console.log("WebSocket Connected");
