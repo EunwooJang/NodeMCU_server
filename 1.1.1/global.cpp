@@ -2,7 +2,7 @@
 
 // 측정 상태 플래그 변수들 정의
 bool isMeasuring = false;  
-bool isSaving = false;     
+bool isSaving = true;     
 bool isSDbusy = false;     
 bool isUpdating = false;    
 bool isSDoff = false;

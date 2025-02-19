@@ -50,7 +50,7 @@ void setup() {
     DEBUG_PRINTLN("SD card initialization failed!");
     SPI.end();  // SPI 버스 비활성화
     digitalWrite(15, HIGH);  // CS 핀을 HIGH로 설정하여 SD 카드 비활성화
-    delay(1000);
+    delay(5000);
     ESP.restart();
     return;
   }
@@ -181,8 +181,14 @@ void saveDataToSD(unsigned long unixTime, const char* d1, const char* d2, size_t
 
     File32 file = sd.open(currentlysavingFile.c_str(), O_RDWR | O_CREAT | O_APPEND);
     if (!file) {
+        SPI.end();  // SPI 버스 비활성화
+        digitalWrite(15, HIGH);
+        // SD.end();
         isSDoff = true;
+        isSaving = false;
         DEBUG_PRINTLN("파일 열기 실패");
+        delay(5000);
+        ESP.restart();
         return;
     }
     
@@ -267,11 +273,7 @@ void loop() {
     
     DEBUG_PRINTLN("Non Measuring...");
 
-  } if (isneeddata) {
-    ws.textAll(cur_status);
-    ws.textAll(cur_payload);
-    isneeddata = false;
   }
-  
+
   yield();
 }
