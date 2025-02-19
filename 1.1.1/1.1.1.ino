@@ -4,14 +4,16 @@
 #include "DHT_multi.h"
 #include "qmc5883l_multi.h"
 
+#include "serial_cmd.h"
+
 // HC-12 모듈을 위한 SoftwareSerial 객체
 SoftwareSerial hc12(D2, D1);
 
 // DHTMulti 객체 생성
-DHTMulti dhtMulti(temp_slave_Amount, temp_sensor_Amount, alive_temp_slave);
+DHTMulti dhtMulti(temp_slave_Amount, temp_sensor_Amount);
 
 // QMC5883LMulti 객체 생성
-QMC5883LMulti compassMulti(magnetic_slave_Amount, magnetic_sensor_Amount, alive_mag_slave);
+QMC5883LMulti compassMulti(magnetic_slave_Amount, magnetic_sensor_Amount);
 
 // SD 카드 객체
 SdFat sd;
@@ -32,15 +34,11 @@ static char cur_status[256] = "";
 
 void setup() {
 
-  DEBUG_BEGIN(74880); // 디버깅용 시리얼 통신 시작
-  DEBUG_PRINTLN(" ");
+  pinMode(15, OUTPUT); // SD end
 
+  DEBUG_BEGIN(74880); // 디버깅용 시리얼 통신 시작
   hc12.begin(9600);  // HC-12 통신 시작 (메인 함수에서 설정)
   
-  // WifiConnect 객체 생성
-  WifiConnect wifi;
-  wifi.connect();  // WiFi 연결 시도
-
   // SPIFFS 파일 시스템 초기화
   if (!LittleFS.begin()) {
     DEBUG_PRINTLN("LittleFS Intial Failed");
@@ -50,8 +48,15 @@ void setup() {
   // SD 파일 시스템 초기화
   if (!sd.begin(15, SD_SCK_MHZ(25))) {
     DEBUG_PRINTLN("SD card initialization failed!");
+    SPI.end();  // SPI 버스 비활성화
+    digitalWrite(15, HIGH);  // CS 핀을 HIGH로 설정하여 SD 카드 비활성화
+    delay(1000);
+    ESP.restart();
     return;
   }
+
+  WifiConnect wifi;
+  wifi.connect();
 
   setupWebSocket(server, ws);
 
@@ -59,7 +64,7 @@ void setup() {
 
   // 서버 시작
   server.begin();
-  Serial.println("HTTP server started");
+  DEBUG_PRINTLN("HTTP server started");
 
   sendEmail("NodeMCU Server v1.1.1", "Server Intialized");
   
@@ -107,7 +112,8 @@ void sendStatus() {
 
   offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"d\":{");
   offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"ati\":%d,\"m\":%d,", acquisitiontimeInterval, max_counts);
-  offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"heap\":%zu", prevHeap);
+  offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"heap\":%zu,", prevHeap);
+  offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"sdoff\":%d", isSDoff);
 
   offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "}");
 
@@ -175,6 +181,7 @@ void saveDataToSD(unsigned long unixTime, const char* d1, const char* d2, size_t
 
     File32 file = sd.open(currentlysavingFile.c_str(), O_RDWR | O_CREAT | O_APPEND);
     if (!file) {
+        isSDoff = true;
         DEBUG_PRINTLN("파일 열기 실패");
         return;
     }
@@ -186,6 +193,9 @@ void saveDataToSD(unsigned long unixTime, const char* d1, const char* d2, size_t
 
 void loop() {
 
+  // Serial command
+  // serialcmd();
+  
   static unsigned long lastWebSocketSendTime = 0;
   unsigned long currentTime = millis();
 
@@ -199,10 +209,11 @@ void loop() {
   ws.cleanupClients();
 
   if ((currentTime - lastWebSocketSendTime >= acquisitiontimeInterval) && !isUpdating) {
-    
+      
     lastWebSocketSendTime = currentTime;
     
     // 측정 상태 설정
+    DEBUG_PRINTLN("Measuring...");
     isMeasuring = true;
 
     struct tm timeinfo;
@@ -228,11 +239,12 @@ void loop() {
     compassMulti.getAllSensorData();
     
     // 저장 중일 시
-    if (isSaving) {
+    if (isSaving && !isSDoff) {
       if (cur_index >= max_counts) {
         currentlysavingFile = "";
       }
       cur_index++;
+      DEBUG_PRINTLN(cur_index);
       saveDataToSD(lastunixTime, dhtMulti.combinedData, compassMulti.combinedData, len1, len2);
       switched = true;
     }
@@ -252,9 +264,10 @@ void loop() {
 
     // 측정상태 해제
     isMeasuring = false;
-  }
-  
-  if (isneeddata) {
+    
+    DEBUG_PRINTLN("Non Measuring...");
+
+  } if (isneeddata) {
     ws.textAll(cur_status);
     ws.textAll(cur_payload);
     isneeddata = false;

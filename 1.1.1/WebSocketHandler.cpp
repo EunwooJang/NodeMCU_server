@@ -16,9 +16,6 @@ bool isneeddata = false;
 
 int client_n = 0;
 
-bool alive_temp_slave[] = {true, false, true, false};
-bool alive_mag_slave[] = {true, false};
-
 int max_counts = 259200;
 unsigned long acquisitiontimeInterval = 10000;  // 데이터 수집 주기 (ms)
 
@@ -41,13 +38,19 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
     request->send(LittleFS, "/index.html", "text/html");
   });
 
+  // HTTP 라우트 등록
+  server.on("/raw", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (millis() - lastRequestTime < requestInterval || isMeasuring) {
+      request->send(200, "text/html", "<script>setTimeout(function(){ location.reload(); }, 1000);</script>Loading...");
+      return;
+    }
+    lastRequestTime = millis();
+    request->send(LittleFS, "/indexraw.html", "text/html");
+  });
+
   // favicon 등록 : 존재하면 제공, 없으면 204(No Content) 응답
   server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (LittleFS.exists("/favicon.ico")) {
-      request->send(LittleFS, "/favicon.ico", "image/x-icon");
-    } else {
-      request->send(204);
-    }
+    request->send(204);
   });
 
   server.addHandler(&ws);
@@ -58,15 +61,23 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
     if (type == WS_EVT_CONNECT) {
       isneeddata = true;
       client_n++;
+      // IPAddress clientIP = client->remoteIP();  // 클라이언트 IP 가져오기
+      
       DEBUG_PRINT(F("WebSocket Client Connected"));
       DEBUG_PRINT(" ");
       DEBUG_PRINTLN(client_n);
+      // DEBUG_PRINT(F("Client IP: "));
+      // DEBUG_PRINTLN(clientIP.toString()); // 접속한 클라이언트 IP 출력
 
     } else if (type == WS_EVT_DISCONNECT) {
       client_n--;
+      // IPAddress clientIP = client->remoteIP();  // 클라이언트 IP 가져오기
+
       DEBUG_PRINT(F("WebSocket Client Disconnected"));
       DEBUG_PRINT(" ");
       DEBUG_PRINTLN(client_n);
+      // DEBUG_PRINT(F("Client IP: "));
+      // DEBUG_PRINTLN(clientIP.toString()); // 나간 클라이언트 IP 출력
 
     } else if (type == WS_EVT_DATA) {
       AwsFrameInfo *info = (AwsFrameInfo *)arg;
@@ -87,7 +98,44 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
           
         // 기기 초기화
         } else if (strcmp(message, "reset") == 0) {
+          if (!isSDoff) {
+            SPI.end();  // SPI 버스 비활성화
+            digitalWrite(15, HIGH);
+          }
           ESP.restart();
+
+        // SAFE SD CARD REMOVING // POWER OFF
+        } else if ((strcmp(message, "sdoff") == 0) && (!isSDoff) && (!isSaving)) {
+          isSDoff = true;
+          SPI.end();  // SPI 버스 비활성화
+          digitalWrite(15, HIGH);  // CS 핀을 HIGH로 설정하여 SD 카드 비활성화
+          DEBUG_PRINTLN("SD end");
+
+        } else if ((strcmp(message, "sdon") == 0) && (isSDoff) && (!isSaving)) {
+          isSDoff = false;
+          sd.begin(15, SD_SCK_MHZ(25));
+          DEBUG_PRINTLN("SD begin");
+
+        } else if (strncmp(message, "turn ", 5) == 0) {
+          char type = message[5];  // 't' 또는 'm'
+          int index = message[7] - '0';  // 인덱스 숫자
+          int value = message[9] - '0';  // 값 (0 또는 1)
+          if (type == 't' && index >= 1 && index <= 4) {
+              alive_temp_slave[index - 1] = (value == 1);
+          } else if (type == 'm' && index >= 1 && index <= 2) {
+              alive_mag_slave[index - 1] = (value == 1);
+          } 
+        } else if (strncmp(message, "set ", 4) == 0 && !isSaving) {
+            String numberPart = String(message + 4); // "set " 이후의 문자열 추출
+            numberPart.trim(); // 앞뒤 공백 제거
+            
+            if (numberPart.length() > 0) {
+                int value = numberPart.toInt(); // 문자열을 정수로 변환
+                
+                if (value > 0) { // 유효한 숫자인지 확인
+                    max_counts = value; // 저장
+                }
+            }
         }
       }
     }
@@ -250,6 +298,7 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
 
     AsyncResponseStream *response = request->beginResponseStream("application/json");
     if (!sd.card()) {
+        isSDoff = true;
         response->print("{\"total\":0}");
     } else {
         uint64_t cardSize = sd.card()->sectorCount();

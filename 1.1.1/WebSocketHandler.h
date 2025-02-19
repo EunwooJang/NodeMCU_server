@@ -24,9 +24,6 @@ extern bool isneeddata;
 
 extern int client_n;
 
-extern bool alive_temp_slave[];
-extern bool alive_mag_slave[];
-
 extern int max_counts;
 
 extern SdFat sd;  // SD 카드 객체 전역 변수 선언

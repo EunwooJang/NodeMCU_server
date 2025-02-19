@@ -2,14 +2,8 @@
 
 extern SoftwareSerial hc12;  // 메인에서 선언된 hc12 사용
 
-DHTMulti::DHTMulti(uint8_t slaveAmount, uint8_t sensorAmount, bool* arr)
+DHTMulti::DHTMulti(uint8_t slaveAmount, uint8_t sensorAmount)
   : slaveAmount(slaveAmount), sensorAmount(sensorAmount) {  // 멤버 변수 sensorAmount도 초기화
-
-  // 전달받은 배열을 복사하여 저장
-  this->arr = new bool[slaveAmount];  // 필요에 따라 크기 조정
-  for (int i = 0; i < slaveAmount; i++) {
-    this->arr[i] = arr[i];  // 배열 복사
-  }
 
   combinedData = new char[4 * sensorAmount * slaveAmount];  // 메모리 동적 할당
   memset(combinedData, 0, 4 * sensorAmount * slaveAmount);
@@ -31,7 +25,7 @@ void DHTMulti::getAllSensorData() {
     int count = 0;  // 각 슬레이브 마다 요청할 최대 횟수는 5회
     char buffer[4 + 4 * sensorAmount];
     memset(buffer, 0, sizeof(buffer));
-    if (arr[i - 1]) {
+    if (alive_temp_slave[i - 1]) {
       while (count < 4) {
         if (requestSensorData(i, buffer)) {
           memcpy(&combinedData[(i - 1) * 4 * sensorAmount], buffer + 4, 4 * sensorAmount);

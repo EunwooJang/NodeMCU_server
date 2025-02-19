@@ -6,7 +6,7 @@
 
 class QMC5883LMulti {
 public:
-  QMC5883LMulti(uint8_t slaveAmount, uint8_t sensorAmount, bool* arr);
+  QMC5883LMulti(uint8_t slaveAmount, uint8_t sensorAmount);
 
   void getAllSensorData();
   char* combinedData;
@@ -14,8 +14,7 @@ public:
 private:
   uint8_t slaveAmount;
   uint8_t sensorAmount;
-  bool* arr;
-  
+
   bool requestSensorData(uint8_t slaveId, char* buffer);
   bool validateReceivedData(const char* data, uint8_t slaveId);
 };

@@ -3,6 +3,8 @@
 
 #include "global.h"
 
+extern SdFat sd;
+
 class WifiConnect {
 
 public:

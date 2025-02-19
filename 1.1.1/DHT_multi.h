@@ -6,7 +6,7 @@
 
 class DHTMulti {
 public:
-  DHTMulti(uint8_t slaveAmount, uint8_t sensorAmount, bool* arr);
+  DHTMulti(uint8_t slaveAmount, uint8_t sensorAmount);
 
   void getAllSensorData();
   char* combinedData;
@@ -14,7 +14,6 @@ public:
 private:
   uint8_t slaveAmount;
   uint8_t sensorAmount;
-  bool* arr;
 
   bool requestSensorData(uint8_t slaveId, char* buffer);
   bool validateReceivedData(const char* data, uint8_t slaveId);

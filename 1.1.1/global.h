@@ -1,7 +1,7 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
-// #define ENABLE_DEBUG // 시리얼 통신 활성화
+#define ENABLE_DEBUG // 시리얼 통신 활성화
 
 #ifdef ENABLE_DEBUG
   // 디버그 출력이 활성화된 경우, Serial.print 함수를 그대로 사용
@@ -34,6 +34,10 @@ extern bool isMeasuring;
 extern bool isSaving;
 extern bool isUpdating;
 extern bool isSDbusy;
+extern bool isSDoff;
+
+extern bool alive_temp_slave[];
+extern bool alive_mag_slave[];
 
 extern String currentlysavingFile;
 
