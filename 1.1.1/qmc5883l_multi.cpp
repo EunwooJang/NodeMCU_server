@@ -1,16 +1,13 @@
 #include "qmc5883l_multi.h"
 
-// 외부에서 선언된 HC12 참조
-extern SoftwareSerial hc12;
-
 QMC5883LMulti::QMC5883LMulti(uint8_t slaveAmount, uint8_t sensorAmount)
   : slaveAmount(slaveAmount), sensorAmount(sensorAmount) {
-
   combinedData = new char[6 * sensorAmount * slaveAmount];
   memset(combinedData, 0, 6 * sensorAmount * slaveAmount);
 }
 
 void QMC5883LMulti::getAllSensorData() {
+  // 데이터 저장 값 초기화
   memset(combinedData, 0, 6 * sensorAmount * slaveAmount);
 
   // 전체 슬레이브에게 측정하라고 명령 전달
@@ -53,7 +50,7 @@ bool QMC5883LMulti::requestSensorData(uint8_t slaveId, char* buffer) {
   hc12.flush();
 
   unsigned long startTime = millis();
-  while ((millis() - startTime) < 500) {  // 200ms 대기
+  while ((millis() - startTime) < 500) {  // 500ms 대기
     if (hc12.available() >= 4 + 6 * sensorAmount) {
       hc12.readBytes(buffer, 4 + 6 * sensorAmount);
       return validateReceivedData(buffer, slaveId);

@@ -4,7 +4,6 @@
 #include "DHT_multi.h"
 #include "qmc5883l_multi.h"
 
-#include "serial_cmd.h"
 
 // HC-12 모듈을 위한 SoftwareSerial 객체
 SoftwareSerial hc12(D2, D1);
@@ -15,20 +14,19 @@ DHTMulti dhtMulti(temp_slave_Amount, temp_sensor_Amount);
 // QMC5883LMulti 객체 생성
 QMC5883LMulti compassMulti(magnetic_slave_Amount, magnetic_sensor_Amount);
 
-// SD 카드 객체
-SdFat sd;
+SdFat sd; // SD 카드 객체
 
+// 비동기 웹소켓 객체 생성
 static AsyncWebServer server(80);
 static AsyncWebSocket ws("/ws");
 
 size_t prevHeap = 52400; // 초기 heap값
 
-bool switched = false; // SD 파일 전환 여부
-
+// SD카드 저장 시, 데이터 크기 설정용
 size_t len1 = 4 * temp_slave_Amount * temp_sensor_Amount;
 size_t len2 = 6 * magnetic_slave_Amount * magnetic_sensor_Amount;
-size_t total_len = len1 + len2;
 
+// 상태/데이터 클라이언트에게 전달
 static char cur_payload[512] = "";
 static char cur_status[256] = "";
 
@@ -37,6 +35,7 @@ void setup() {
   pinMode(15, OUTPUT); // SD end
 
   DEBUG_BEGIN(74880); // 디버깅용 시리얼 통신 시작
+
   hc12.begin(9600);  // HC-12 통신 시작 (메인 함수에서 설정)
   
   // SPIFFS 파일 시스템 초기화
@@ -48,29 +47,34 @@ void setup() {
   // SD 파일 시스템 초기화
   if (!sd.begin(15, SD_SCK_MHZ(25))) {
     DEBUG_PRINTLN("SD card initialization failed!");
-    SPI.end();  // SPI 버스 비활성화
-    digitalWrite(15, HIGH);  // CS 핀을 HIGH로 설정하여 SD 카드 비활성화
+
+    SPI.end();
+    digitalWrite(15, HIGH);
+    
     delay(5000);
+
     ESP.restart();
     return;
   }
 
-  WifiConnect wifi;
-  wifi.connect();
+  // Wifi 연결
+  Wificonnect();
 
+  // 선언된 서버 및 웹소켓을 핸들러 지정
   setupWebSocket(server, ws);
 
+  // NTP (Network time protocol) 지정 UTC +9 시간 (대한민국)으로 NTC 받는 용도
   configTime(9 * 3600, 0, "kr.pool.ntp.org", "pool.ntp.org");
 
   // 서버 시작
   server.begin();
   DEBUG_PRINTLN("HTTP server started");
 
+  // 서버 시작을 메일로 보냄
   sendEmail("NodeMCU Server v1.1.1", "Server Intialized");
-  
-  prevHeap = ESP.getFreeHeap();
 }
 
+// 상태 정보를 서버로 전달
 void sendStatus() {
   // JSON 문자열을 저장할 오프셋 변수 (현재까지 작성된 문자열 길이)
   int offset = 0;
@@ -111,7 +115,7 @@ void sendStatus() {
   offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"i\":%d,\"c\":%d,", isSaving, cur_index);
 
   offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"d\":{");
-  offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"ati\":%d,\"m\":%d,", acquisitiontimeInterval, max_counts);
+  offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"ati\":%d,\"m\":%d,", acquisitiontimeIntervalmillis, max_counts);
   offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"heap\":%zu,", prevHeap);
   offset += snprintf(cur_status + offset, sizeof(cur_status) - offset, "\"sdoff\":%d", isSDoff);
 
@@ -124,6 +128,7 @@ void sendStatus() {
   ws.textAll(cur_status);
 }
 
+// 센서 측정 데이터를 서버로 전달
 void sendPayload(unsigned long ut) {
     size_t offset = 0;  // 현재 payload에서 문자열이 추가될 위치
 
@@ -158,7 +163,8 @@ void sendPayload(unsigned long ut) {
 
 }
 
-void saveDataToSD(unsigned long unixTime, const char* d1, const char* d2, size_t d1_len, size_t d2_len) {
+// 측정 데이터를 SD 카드로 저장
+void saveDataToSD(unsigned long unixTime, const char* d1, const char* d2) {
     if (currentlysavingFile == "") {
         time_t rawTime = unixTime;
         struct tm* timeInfo = localtime(&rawTime);
@@ -172,35 +178,35 @@ void saveDataToSD(unsigned long unixTime, const char* d1, const char* d2, size_t
         DEBUG_PRINTLN("새 파일 생성: " + currentlysavingFile);
     }
 
-    size_t totalSize = 4 + d1_len + d2_len;
+    size_t totalSize = 4 + len1 + len2;
     uint8_t rawData[totalSize];
 
     memcpy(rawData, &unixTime, 4);
-    memcpy(rawData + 4, d1, d1_len);
-    memcpy(rawData + 4 + d1_len, d2, d2_len);
+    memcpy(rawData + 4, d1, len1);
+    memcpy(rawData + 4 + len1, d2, len2);
 
     File32 file = sd.open(currentlysavingFile.c_str(), O_WRONLY | O_CREAT | O_APPEND);
     if (!file) {
-        SPI.end();  // SPI 버스 비활성화
-        digitalWrite(15, HIGH);
         DEBUG_PRINTLN("파일 열기 실패");
+        
+        SPI.end();
+        digitalWrite(15, HIGH);
+
         delay(5000);
+        
         ESP.restart();
         return;
     }
     
-    file.write(rawData, totalSize);  // 전체 데이터 저장
+    file.write(rawData, totalSize);
     file.close();
 }
 
 
 void loop() {
-
-  // Serial command
-  // serialcmd();
   
-  static unsigned long lastWebSocketSendTime = 0;
-  unsigned long currentTime = millis();
+  static unsigned long lastWebSocketSendTimemillis = 0;
+  unsigned long currentTimemillis = millis();
 
   if (ESP.getFreeHeap() < prevHeap) {
     DEBUG_PRINT(ESP.getFreeHeap());
@@ -211,13 +217,13 @@ void loop() {
 
   ws.cleanupClients();
 
-  if ((currentTime - lastWebSocketSendTime >= acquisitiontimeInterval) && !isUpdating) {
+  if ((currentTimemillis - lastWebSocketSendTimemillis >= acquisitiontimeIntervalmillis) && !isUpdating) {
       
-    lastWebSocketSendTime = currentTime;
+    lastWebSocketSendTimemillis = currentTimemillis;
     
     // 측정 상태 설정
-    DEBUG_PRINTLN("Measuring...");
     isMeasuring = true;
+    DEBUG_PRINTLN("Measuring...");
 
     struct tm timeinfo;
     unsigned long unixTime;
@@ -232,7 +238,7 @@ void loop() {
 
     // 서버 시간 얻기 성공/실패 유무에 따른 처리
     if (unixTime == 0) {
-      lastunixTime += acquisitiontimeInterval / 1000;
+      lastunixTime += acquisitiontimeIntervalmillis / 1000;
      } else {
       lastunixTime = unixTime;
     }
@@ -248,15 +254,15 @@ void loop() {
       }
       cur_index++;
       DEBUG_PRINTLN(cur_index);
-      saveDataToSD(lastunixTime, dhtMulti.combinedData, compassMulti.combinedData, len1, len2);
-      switched = true;
+      saveDataToSD(lastunixTime, dhtMulti.combinedData, compassMulti.combinedData);
+      isSwitched = true;
     }
     
-    // 저장중은 아닐 때, 파일이름 및 저장 데이터 인덱스 초기화
-    if (!isSaving && switched) {
+    // 저장 중이 아닐 때, 파일이름 및 저장 데이터 인덱스 초기화
+    if (!isSaving && isSwitched) {
       cur_index = 0;
       currentlysavingFile = "";
-      switched = false;
+      isSwitched = false;
     }
 
     // 클라이언트 접속 시
@@ -267,10 +273,10 @@ void loop() {
 
     // 측정상태 해제
     isMeasuring = false;
-    
-    DEBUG_PRINTLN("Non Measuring...");
+    DEBUG_PRINTLN("Standby");
 
   }
 
+  // 뭐였더라??
   yield();
 }

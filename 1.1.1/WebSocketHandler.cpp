@@ -1,50 +1,50 @@
 #include "WebSocketHandler.h"
 
-// 버전 정보 (HTML 등에서 공유)
+
 const char *version = "1.1.1";
 
-// Slave 아두이노 및 센서 관련 설정
-int temp_slave_Amount = 4;   // slave 아두이노 개수
-int temp_sensor_Amount = 5;  // 각 아두이노당 센서 개수
+int temp_slave_Amount = 4;   
+int temp_sensor_Amount = 5;
 
-int magnetic_slave_Amount = 2;   // slave 아두이노 개수
-int magnetic_sensor_Amount = 1;  // 각 아두이노당 센서 개수
+int magnetic_slave_Amount = 2;
+int magnetic_sensor_Amount = 1;
 
 int cur_index = 0;
 
-bool isneeddata = false;
+unsigned long acquisitiontimeIntervalmillis = 10000;
 
 int client_n = 0;
 
 int max_counts = 259200;
-unsigned long acquisitiontimeInterval = 10000;  // 데이터 수집 주기 (ms)
 
-// OTA 업데이트 과정에서 사용할 파일의 전체 크기를 저장하는 전역 변수
+String currentlysavingFile = "";
+
+// OTA 업데이트용 파일 크기
 static size_t update_content_len = 0;
 
 // 과부화 방지를 위해 페이지 접속 간 로드 시간 할당
-unsigned long lastRequestTime = 0;
-const unsigned long requestInterval = 500;
+unsigned long lastRequestTimemillis = 0;
+const unsigned long requestIntervalmillis = 500;
 
 
 void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
-  // HTTP 라우트 등록
+  // HTTP 메인 페이지
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (millis() - lastRequestTime < requestInterval || isMeasuring) {
+    if (millis() - lastRequestTimemillis < requestIntervalmillis || isMeasuring) {
       request->send(200, "text/html", "<script>setTimeout(function(){ location.reload(); }, 1000);</script>Loading...");
       return;
     }
-    lastRequestTime = millis();
+    lastRequestTimemillis = millis();
     request->send(LittleFS, "/index.html", "text/html");
   });
 
-  // HTTP 라우트 등록
+  // HTTPS 메인 페이지
   server.on("/raw", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (millis() - lastRequestTime < requestInterval || isMeasuring) {
+    if (millis() - lastRequestTimemillis < requestIntervalmillis || isMeasuring) {
       request->send(200, "text/html", "<script>setTimeout(function(){ location.reload(); }, 1000);</script>Loading...");
       return;
     }
-    lastRequestTime = millis();
+    lastRequestTimemillis = millis();
     request->send(LittleFS, "/indexraw.html", "text/html");
   });
 
@@ -53,31 +53,25 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
     request->send(204);
   });
 
+  // 웹소켓 핸들러 등록
   server.addHandler(&ws);
 
   // WebSocket 이벤트 핸들러 등록 ("/ws" 경로는 ws 객체가 생성될 때 지정됨)
   ws.onEvent(
     [](AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
     if (type == WS_EVT_CONNECT) {
-      isneeddata = true;
       client_n++;
-      // IPAddress clientIP = client->remoteIP();  // 클라이언트 IP 가져오기
       
       DEBUG_PRINT(F("WebSocket Client Connected"));
       DEBUG_PRINT(" ");
       DEBUG_PRINTLN(client_n);
-      // DEBUG_PRINT(F("Client IP: "));
-      // DEBUG_PRINTLN(clientIP.toString()); // 접속한 클라이언트 IP 출력
 
     } else if (type == WS_EVT_DISCONNECT) {
       client_n--;
-      // IPAddress clientIP = client->remoteIP();  // 클라이언트 IP 가져오기
 
       DEBUG_PRINT(F("WebSocket Client Disconnected"));
       DEBUG_PRINT(" ");
       DEBUG_PRINTLN(client_n);
-      // DEBUG_PRINT(F("Client IP: "));
-      // DEBUG_PRINTLN(clientIP.toString()); // 나간 클라이언트 IP 출력
 
     } else if (type == WS_EVT_DATA) {
       AwsFrameInfo *info = (AwsFrameInfo *)arg;
@@ -111,11 +105,13 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
           digitalWrite(15, HIGH);  // CS 핀을 HIGH로 설정하여 SD 카드 비활성화
           DEBUG_PRINTLN("SD end");
 
+        // 
         } else if ((strcmp(message, "sdon") == 0) && (isSDoff) && (!isSaving)) {
           isSDoff = false;
           sd.begin(15, SD_SCK_MHZ(25));
           DEBUG_PRINTLN("SD begin");
 
+        //
         } else if (strncmp(message, "turn ", 5) == 0) {
           char type = message[5];  // 't' 또는 'm'
           int index = message[7] - '0';  // 인덱스 숫자
@@ -124,7 +120,9 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
               alive_temp_slave[index - 1] = (value == 1);
           } else if (type == 'm' && index >= 1 && index <= 2) {
               alive_mag_slave[index - 1] = (value == 1);
-          } 
+          }
+
+        //
         } else if (strncmp(message, "set ", 4) == 0 && !isSaving) {
             String numberPart = String(message + 4); // "set " 이후의 문자열 추출
             numberPart.trim(); // 앞뒤 공백 제거
@@ -136,6 +134,20 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
                     max_counts = value; // 저장
                 }
             }
+        //
+        } else if  (strncmp(message, "adjust ", 7) == 0 && !isSaving) {
+          while (!isMeasuring) {
+          }
+          String numberPart = String(message + 7); // "set " 이후의 문자열 추출
+          numberPart.trim(); // 앞뒤 공백 제거
+
+          if (numberPart.length() > 0) {
+                int newacquisitiontimeIntervalsec = numberPart.toInt(); // 문자열을 정수로 변환
+                
+                if (newacquisitiontimeIntervalsec >= 10) { // 유효한 숫자인지 확인
+                    acquisitiontimeIntervalmillis = newacquisitiontimeIntervalsec * 1000; // 저장
+                }
+            }
         }
       }
     }
@@ -143,11 +155,11 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
 
   // GET 요청: 클라이언트가 /update 경로로 접속하면, update.html 페이지를 제공
   server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (millis() - lastRequestTime < requestInterval || isMeasuring) {
+    if (millis() - lastRequestTimemillis < requestIntervalmillis || isMeasuring) {
       request->send(200, "text/html", "<script>setTimeout(function(){ location.reload(); }, 1000);</script>Loading...");
       return;
     }
-    lastRequestTime = millis();
+    lastRequestTimemillis = millis();
     request->send(LittleFS, "/update.html", "text/html");
   });
 
@@ -197,20 +209,21 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
       }
   });
   
+  // 파일 메니저 페이지
   server.on("/files", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (millis() - lastRequestTime < requestInterval || isMeasuring) {
+    if (millis() - lastRequestTimemillis < requestIntervalmillis || isMeasuring) {
       request->send(200, "text/html", "<script>setTimeout(function(){ location.reload(); }, 1000);</script>Loading...");
       return;
     }
-    lastRequestTime = millis();
+    lastRequestTimemillis = millis();
     request->send(LittleFS, "/setup.html", "text/html");
   });
 
   // LittleFS LIST
   server.on("/list", HTTP_GET, [](AsyncWebServerRequest *request) {
-    while (millis() - lastRequestTime < requestInterval) {
+    while (millis() - lastRequestTimemillis < requestIntervalmillis) {
     }
-    lastRequestTime = millis();
+    lastRequestTimemillis = millis();
     
     AsyncResponseStream *response = request->beginResponseStream("application/json");
     response->print("{\"files\":[");
@@ -228,9 +241,9 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
 
   // LittleFS INFO
   server.on("/spiffs", HTTP_GET, [](AsyncWebServerRequest *request) {
-    while (millis() - lastRequestTime < requestInterval) {
+    while (millis() - lastRequestTimemillis < requestIntervalmillis) {
     }
-    lastRequestTime = millis();
+    lastRequestTimemillis = millis();
     
     AsyncResponseStream *response = request->beginResponseStream("application/json");
     FSInfo fs_info;
@@ -292,9 +305,9 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
 
   // SD INFO
   server.on("/sdinfo", HTTP_GET, [](AsyncWebServerRequest *request) {
-    while (millis() - lastRequestTime < requestInterval) {
+    while ((millis() - lastRequestTimemillis < requestIntervalmillis) && !isMeasuring) {
     }
-    lastRequestTime = millis();
+    lastRequestTimemillis = millis();
 
     AsyncResponseStream *response = request->beginResponseStream("application/json");
     if (!sd.card()) {
@@ -310,9 +323,9 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
 
   // SD LIST
   server.on("/sdlist", HTTP_GET, [](AsyncWebServerRequest *request) {
-    while (millis() - lastRequestTime < requestInterval) {
+    while ((millis() - lastRequestTimemillis < requestIntervalmillis) && !isMeasuring) {
     }
-    lastRequestTime = millis();
+    lastRequestTimemillis = millis();
     AsyncResponseStream *response = request->beginResponseStream("application/json");
     response->print("{\"files\":[");
 

@@ -35,10 +35,10 @@ extern bool isSaving;
 extern bool isUpdating;
 extern bool isSDbusy;
 extern bool isSDoff;
+extern bool isSwitched;
 
+// 센서 종류별 슬레이브 활성화 여부
 extern bool alive_temp_slave[];
 extern bool alive_mag_slave[];
-
-extern String currentlysavingFile;
 
 #endif

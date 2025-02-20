@@ -1,16 +1,13 @@
 #include "DHT_multi.h"
 
-extern SoftwareSerial hc12;  // 메인에서 선언된 hc12 사용
-
 DHTMulti::DHTMulti(uint8_t slaveAmount, uint8_t sensorAmount)
-  : slaveAmount(slaveAmount), sensorAmount(sensorAmount) {  // 멤버 변수 sensorAmount도 초기화
-
-  combinedData = new char[4 * sensorAmount * slaveAmount];  // 메모리 동적 할당
+  : slaveAmount(slaveAmount), sensorAmount(sensorAmount) {
+  combinedData = new char[4 * sensorAmount * slaveAmount];
   memset(combinedData, 0, 4 * sensorAmount * slaveAmount);
 }
 
 void DHTMulti::getAllSensorData() {
-
+  // 데이터 저장 값 초기화
   memset(combinedData, 0, 4 * sensorAmount * slaveAmount);
 
   // 전체 슬레이브에게 측정하라고 명령 전달
@@ -46,7 +43,6 @@ void DHTMulti::getAllSensorData() {
   }
 }
 
-// 데이터 요청
 bool DHTMulti::requestSensorData(uint8_t slaveId, char* buffer) {
   char command[5];
   snprintf(command, 5, "S%dTD", slaveId);
@@ -54,7 +50,7 @@ bool DHTMulti::requestSensorData(uint8_t slaveId, char* buffer) {
   hc12.flush();
 
   unsigned long startTime = millis();
-  while ((millis() - startTime) < 500) {  // 200ms 대기
+  while ((millis() - startTime) < 500) {  // 500ms 대기
     if (hc12.available() >= 4 + 4 * sensorAmount) {
       hc12.readBytes(buffer, 4 + 4 * sensorAmount);
       return validateReceivedData(buffer, slaveId);
@@ -68,7 +64,6 @@ bool DHTMulti::requestSensorData(uint8_t slaveId, char* buffer) {
   return false;  // 타임아웃
 }
 
-// 데이터 유효성 검사
 bool DHTMulti::validateReceivedData(const char* data, uint8_t slaveId) {
   char expectedHeader[5];
   snprintf(expectedHeader, sizeof(expectedHeader), "D%dTD", slaveId);
