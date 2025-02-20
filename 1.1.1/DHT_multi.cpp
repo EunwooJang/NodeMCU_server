@@ -19,7 +19,7 @@ void DHTMulti::getAllSensorData() {
 
   for (uint8_t i = 1; i <= slaveAmount; i++) {
 
-    int count = 0;  // 각 슬레이브 마다 요청할 최대 횟수는 5회
+    int count = 0;  // 각 슬레이브 마다 요청할 최대 횟수는 4회
     char buffer[4 + 4 * sensorAmount];
     memset(buffer, 0, sizeof(buffer));
     if (alive_temp_slave[i - 1]) {

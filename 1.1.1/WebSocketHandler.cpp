@@ -98,20 +98,20 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
           }
           ESP.restart();
 
-        // SAFE SD CARD REMOVING // POWER OFF
+        // 전원 해제 이전에 SD카드 끄기
         } else if ((strcmp(message, "sdoff") == 0) && (!isSDoff) && (!isSaving)) {
           isSDoff = true;
           SPI.end();  // SPI 버스 비활성화
           digitalWrite(15, HIGH);  // CS 핀을 HIGH로 설정하여 SD 카드 비활성화
           DEBUG_PRINTLN("SD end");
 
-        // 
+        // SD카드 키기
         } else if ((strcmp(message, "sdon") == 0) && (isSDoff) && (!isSaving)) {
           isSDoff = false;
           sd.begin(15, SD_SCK_MHZ(25));
           DEBUG_PRINTLN("SD begin");
 
-        //
+        // 특정 센서 슬레이브 활성화/비활성화
         } else if (strncmp(message, "turn ", 5) == 0) {
           char type = message[5];  // 't' 또는 'm'
           int index = message[7] - '0';  // 인덱스 숫자
@@ -122,19 +122,20 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
               alive_mag_slave[index - 1] = (value == 1);
           }
 
-        //
+        // 파일당 저장할 데이터 크기 지정
         } else if (strncmp(message, "set ", 4) == 0 && !isSaving) {
-            String numberPart = String(message + 4); // "set " 이후의 문자열 추출
-            numberPart.trim(); // 앞뒤 공백 제거
+          String numberPart = String(message + 4); // "set " 이후의 문자열 추출
+          numberPart.trim(); // 앞뒤 공백 제거
+          
+          if (numberPart.length() > 0) {
+            int value = numberPart.toInt(); // 문자열을 정수로 변환
             
-            if (numberPart.length() > 0) {
-                int value = numberPart.toInt(); // 문자열을 정수로 변환
-                
-                if (value > 0) { // 유효한 숫자인지 확인
-                    max_counts = value; // 저장
-                }
+            if (value > 0) { // 유효한 숫자인지 확인
+              max_counts = value; // 저장
             }
-        //
+          }
+
+        // 샘플링 간격 조절 (최소 10초)
         } else if  (strncmp(message, "adjust ", 7) == 0 && !isSaving) {
           while (!isMeasuring) {
           }
@@ -142,12 +143,12 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
           numberPart.trim(); // 앞뒤 공백 제거
 
           if (numberPart.length() > 0) {
-                int newacquisitiontimeIntervalsec = numberPart.toInt(); // 문자열을 정수로 변환
-                
-                if (newacquisitiontimeIntervalsec >= 10) { // 유효한 숫자인지 확인
-                    acquisitiontimeIntervalmillis = newacquisitiontimeIntervalsec * 1000; // 저장
-                }
+            int newacquisitiontimeIntervalsec = numberPart.toInt(); // 문자열을 정수로 변환
+            
+            if (newacquisitiontimeIntervalsec >= 10) { // 유효한 숫자인지 확인
+              acquisitiontimeIntervalmillis = newacquisitiontimeIntervalsec * 1000; // 저장
             }
+          }
         }
       }
     }
@@ -311,12 +312,12 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
 
     AsyncResponseStream *response = request->beginResponseStream("application/json");
     if (!sd.card()) {
-        isSDoff = true;
-        response->print("{\"total\":0}");
+      isSDoff = true;
+      response->print("{\"total\":0}");
     } else {
-        uint64_t cardSize = sd.card()->sectorCount();
-        uint64_t cardCapacity = cardSize * 512;
-        response->printf("{\"total\":%llu}", cardCapacity);
+      uint64_t cardSize = sd.card()->sectorCount();
+      uint64_t cardCapacity = cardSize * 512;
+      response->printf("{\"total\":%llu}", cardCapacity);
     }
     request->send(response);
   });

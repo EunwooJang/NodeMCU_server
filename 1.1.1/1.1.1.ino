@@ -130,76 +130,76 @@ void sendStatus() {
 
 // 센서 측정 데이터를 서버로 전달
 void sendPayload(unsigned long ut) {
-    size_t offset = 0;  // 현재 payload에서 문자열이 추가될 위치
+  size_t offset = 0;  // 현재 payload에서 문자열이 추가될 위치
 
-    // JSON 시작
-    offset += snprintf(cur_payload + offset, sizeof(cur_payload) - offset, "{\"time\":%lu,\"result\":[", ut);
+  // JSON 시작
+  offset += snprintf(cur_payload + offset, sizeof(cur_payload) - offset, "{\"time\":%lu,\"result\":[", ut);
 
-    // 온도 센서 데이터 추가
-    for (int i = 0; i < temp_slave_Amount * temp_sensor_Amount * 4; i += 2) {
-        uint16_t value = (uint16_t)dhtMulti.combinedData[i] | ((uint16_t)dhtMulti.combinedData[i + 1] << 8);
-        offset += snprintf(cur_payload + offset, sizeof(cur_payload) - offset, "%d", value);
+  // 온도 센서 데이터 추가
+  for (int i = 0; i < temp_slave_Amount * temp_sensor_Amount * 4; i += 2) {
+    uint16_t value = (uint16_t)dhtMulti.combinedData[i] | ((uint16_t)dhtMulti.combinedData[i + 1] << 8);
+    offset += snprintf(cur_payload + offset, sizeof(cur_payload) - offset, "%d", value);
 
-        // 마지막 요소가 아니라면 쉼표 추가
-        if (i + 2 < temp_slave_Amount * temp_sensor_Amount * 4 || magnetic_slave_Amount * magnetic_sensor_Amount * 6 > 0) {
-            offset += snprintf(cur_payload + offset, sizeof(cur_payload) - offset, ",");
-        }
+    // 마지막 요소가 아니라면 쉼표 추가
+    if (i + 2 < temp_slave_Amount * temp_sensor_Amount * 4 || magnetic_slave_Amount * magnetic_sensor_Amount * 6 > 0) {
+        offset += snprintf(cur_payload + offset, sizeof(cur_payload) - offset, ",");
     }
+  }
 
-    // 자기 센서 데이터 추가
-    for (int i = 0; i < magnetic_slave_Amount * magnetic_sensor_Amount * 6; i += 2) {
-        uint16_t value = (uint16_t)compassMulti.combinedData[i] | ((uint16_t)compassMulti.combinedData[i + 1] << 8);
-        offset += snprintf(cur_payload + offset, sizeof(cur_payload) - offset, "%d", value);
+  // 자기 센서 데이터 추가
+  for (int i = 0; i < magnetic_slave_Amount * magnetic_sensor_Amount * 6; i += 2) {
+    uint16_t value = (uint16_t)compassMulti.combinedData[i] | ((uint16_t)compassMulti.combinedData[i + 1] << 8);
+    offset += snprintf(cur_payload + offset, sizeof(cur_payload) - offset, "%d", value);
 
-        // 마지막 요소가 아니라면 쉼표 추가
-        if (i + 2 < magnetic_slave_Amount * magnetic_sensor_Amount * 6) {
-            offset += snprintf(cur_payload + offset, sizeof(cur_payload) - offset, ",");
-        }
+    // 마지막 요소가 아니라면 쉼표 추가
+    if (i + 2 < magnetic_slave_Amount * magnetic_sensor_Amount * 6) {
+        offset += snprintf(cur_payload + offset, sizeof(cur_payload) - offset, ",");
     }
+  }
 
-    snprintf(cur_payload + offset, sizeof(cur_payload) - offset, "]}");
+  snprintf(cur_payload + offset, sizeof(cur_payload) - offset, "]}");
 
-    ws.textAll(cur_payload);
+  ws.textAll(cur_payload);
 
 }
 
 // 측정 데이터를 SD 카드로 저장
 void saveDataToSD(unsigned long unixTime, const char* d1, const char* d2) {
-    if (currentlysavingFile == "") {
-        time_t rawTime = unixTime;
-        struct tm* timeInfo = localtime(&rawTime);
+  if (currentlysavingFile == "") {
+    time_t rawTime = unixTime;
+    struct tm* timeInfo = localtime(&rawTime);
 
-        char formattedTime[30];
-        strftime(formattedTime, sizeof(formattedTime), "%Y%m%d%H%M%S", timeInfo);
+    char formattedTime[30];
+    strftime(formattedTime, sizeof(formattedTime), "%Y%m%d%H%M%S", timeInfo);
 
-        snprintf(formattedTime, sizeof(formattedTime), "%s_%d_%d_%d_%d.dat",
-                 formattedTime, temp_slave_Amount, temp_sensor_Amount, magnetic_slave_Amount, magnetic_sensor_Amount);
-        currentlysavingFile = formattedTime;
-        DEBUG_PRINTLN("새 파일 생성: " + currentlysavingFile);
-    }
+    snprintf(formattedTime, sizeof(formattedTime), "%s_%d_%d_%d_%d.dat",
+            formattedTime, temp_slave_Amount, temp_sensor_Amount, magnetic_slave_Amount, magnetic_sensor_Amount);
+    currentlysavingFile = formattedTime;
+    DEBUG_PRINTLN("새 파일 생성: " + currentlysavingFile);
+  }
 
-    size_t totalSize = 4 + len1 + len2;
-    uint8_t rawData[totalSize];
+  size_t totalSize = 4 + len1 + len2;
+  uint8_t rawData[totalSize];
 
-    memcpy(rawData, &unixTime, 4);
-    memcpy(rawData + 4, d1, len1);
-    memcpy(rawData + 4 + len1, d2, len2);
+  memcpy(rawData, &unixTime, 4);
+  memcpy(rawData + 4, d1, len1);
+  memcpy(rawData + 4 + len1, d2, len2);
 
-    File32 file = sd.open(currentlysavingFile.c_str(), O_WRONLY | O_CREAT | O_APPEND);
-    if (!file) {
-        DEBUG_PRINTLN("파일 열기 실패");
-        
-        SPI.end();
-        digitalWrite(15, HIGH);
-
-        delay(5000);
-        
-        ESP.restart();
-        return;
-    }
+  File32 file = sd.open(currentlysavingFile.c_str(), O_WRONLY | O_CREAT | O_APPEND);
+  if (!file) {
+    DEBUG_PRINTLN("파일 열기 실패");
     
-    file.write(rawData, totalSize);
-    file.close();
+    SPI.end();
+    digitalWrite(15, HIGH);
+
+    delay(5000);
+    
+    ESP.restart();
+    return;
+  }
+  
+  file.write(rawData, totalSize);
+  file.close();
 }
 
 
@@ -232,14 +232,14 @@ void loop() {
     // 서버 시간 얻기
     if (getLocalTime(&timeinfo)) {
       unixTime = mktime(&timeinfo);
-     } else {
+    } else {
       unixTime = 0;
     }
 
     // 서버 시간 얻기 성공/실패 유무에 따른 처리
     if (unixTime == 0) {
       lastunixTime += acquisitiontimeIntervalmillis / 1000;
-     } else {
+    } else {
       lastunixTime = unixTime;
     }
 
@@ -277,6 +277,5 @@ void loop() {
 
   }
 
-  // 뭐였더라??
   yield();
 }
