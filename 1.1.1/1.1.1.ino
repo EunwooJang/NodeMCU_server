@@ -179,13 +179,10 @@ void saveDataToSD(unsigned long unixTime, const char* d1, const char* d2, size_t
     memcpy(rawData + 4, d1, d1_len);
     memcpy(rawData + 4 + d1_len, d2, d2_len);
 
-    File32 file = sd.open(currentlysavingFile.c_str(), O_RDWR | O_CREAT | O_APPEND);
+    File32 file = sd.open(currentlysavingFile.c_str(), O_WRONLY | O_CREAT | O_APPEND);
     if (!file) {
         SPI.end();  // SPI 버스 비활성화
         digitalWrite(15, HIGH);
-        // SD.end();
-        isSDoff = true;
-        isSaving = false;
         DEBUG_PRINTLN("파일 열기 실패");
         delay(5000);
         ESP.restart();
