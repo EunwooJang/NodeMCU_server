@@ -49,8 +49,8 @@ bool DHTMulti::requestSensorData(uint8_t slaveId, char* buffer) {
   hc12.write(command);
   hc12.flush();
 
-  unsigned long startTime = millis();
-  while ((millis() - startTime) < 500) {  // 500ms 대기
+  unsigned long startTimemillis = millis();
+  while ((millis() - startTimemillis) < 500) {  // 500ms 대기
     if (hc12.available() >= 4 + 4 * sensorAmount) {
       hc12.readBytes(buffer, 4 + 4 * sensorAmount);
       return validateReceivedData(buffer, slaveId);

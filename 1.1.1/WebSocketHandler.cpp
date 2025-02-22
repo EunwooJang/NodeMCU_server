@@ -116,9 +116,9 @@ void setupWebSocket(AsyncWebServer &server, AsyncWebSocket &ws) {
           char type = message[5];  // 't' 또는 'm'
           int index = message[7] - '0';  // 인덱스 숫자
           int value = message[9] - '0';  // 값 (0 또는 1)
-          if (type == 't' && index >= 1 && index <= 4) {
+          if (type == 't' && index >= 1 && index <= temp_slave_Amount) {
               alive_temp_slave[index - 1] = (value == 1);
-          } else if (type == 'm' && index >= 1 && index <= 2) {
+          } else if (type == 'm' && index >= 1 && index <= magnetic_slave_Amount) {
               alive_mag_slave[index - 1] = (value == 1);
           }
 
