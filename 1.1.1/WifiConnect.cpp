@@ -59,7 +59,7 @@ void Wificonnect() {
   
   // 만일 SD카드에 들어있는 와이파이 정보들로 접속 불가 시, 아래의 코드를 실행해야 함
   /*
-  WiFi.begin("eunwoo", "oxygenic314");
+  WiFi.begin("ssid", "password");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     DEBUG_PRINT(".");
