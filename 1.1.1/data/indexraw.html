@@ -48,10 +48,17 @@
             line-height: 1.4;}
         #extra {
             width: 100%;
-            height: calc(1.4em * 9);
+            height: calc(1.4em * 10); /* 10줄 높이 */
             border: 1px solid #ccc;
             background-color: #fff;
-            margin-bottom: 5px;}
+            overflow-y: auto; /* 스크롤 가능하도록 설정 */
+            white-space: pre-wrap; /* 줄바꿈 유지 */
+            margin: 0; /* 기본 마진 제거 */
+            padding: 0;
+            line-height: 1.2; /* 줄 간격 조정 */
+            display: inline-block; /* 불필요한 줄바꿈 제거 */
+            font-size: 12px;
+        }
         #command-box {
             display: flex;
             justify-content: center;
@@ -125,7 +132,7 @@
 
         function adjustHeight() {
             let tempRows = TEMP_SLAVE_COUNT * 4;
-            let magRows = MAG_SLAVE_COUNT * (2 + MAG_SENSOR_COUNT);
+            let magRows = MAG_SLAVE_COUNT * (2 + 4);
             let extraRows = 2;
             
             let totalRows = tempRows + magRows + extraRows;
@@ -246,15 +253,25 @@ SD card: <span style="color: ${data.d.sdoff ? 'black' : 'red'};">${data.d.sdoff 
             for (let slave = 0; slave < MAG_SLAVE_COUNT; slave++) {
                 let isAlive = ALIVE_MAG_SLAVE[slave] === 1;
                 let allZero = true;
+                let magX_values = [];
+                let magY_values = [];
+                let magZ_values = [];
+                let norm_values = [];
 
                 for (let sensor = 0; sensor < MAG_SENSOR_COUNT; sensor++) {
                     let magX = index < values.length ? toSigned16(values[index]) : 0;
                     let magY = index + 1 < values.length ? toSigned16(values[index + 1]) : 0;
                     let magZ = index + 2 < values.length ? toSigned16(values[index + 2]) : 0;
+                    let norm = Math.sqrt(magX ** 2 + magY ** 2 + magZ ** 2) * CONVERSION_FACTOR;
 
                     if (magX !== 0 || magY !== 0 || magZ !== 0) {
                         allZero = false;
                     }
+
+                    magX_values.push((magX * CONVERSION_FACTOR).toFixed(2).padStart(7, " ") + " μT");
+                    magY_values.push((magY * CONVERSION_FACTOR).toFixed(2).padStart(7, " ") + " μT");
+                    magZ_values.push((magZ * CONVERSION_FACTOR).toFixed(2).padStart(7, " ") + " μT");
+                    norm_values.push(norm.toFixed(2).padStart(7, " ") + " μT");
 
                     index += 3;
                 }
@@ -262,27 +279,15 @@ SD card: <span style="color: ${data.d.sdoff ? 'black' : 'red'};">${data.d.sdoff 
                 let slaveColor = isAlive ? (allZero ? 'red' : 'black') : '#E0E0E0';
                 logEntry += `<span style="color:${slaveColor};">[Slave ${slave + 1}]</span>\n`;
 
-                index -= 3 * MAG_SENSOR_COUNT;
-
-                for (let sensor = 0; sensor < MAG_SENSOR_COUNT; sensor++) {
-                    let magX = index < values.length ? toSigned16(values[index]) : 0;
-                    let magY = index + 1 < values.length ? toSigned16(values[index + 1]) : 0;
-                    let magZ = index + 2 < values.length ? toSigned16(values[index + 2]) : 0;
-                    let magX_uT = (magX * CONVERSION_FACTOR).toFixed(2).padStart(7, " ") + " μT";
-                    let magY_uT = (magY * CONVERSION_FACTOR).toFixed(2).padStart(7, " ") + " μT";
-                    let magZ_uT = (magZ * CONVERSION_FACTOR).toFixed(2).padStart(7, " ") + " μT";
-                    let norm = Math.sqrt(magX ** 2 + magY ** 2 + magZ ** 2) * CONVERSION_FACTOR;
-                    let norm_uT = norm.toFixed(2).padStart(7, " ") + " μT";
-
-                    let color = isAlive ? (allZero ? "red" : "black") : "#E0E0E0";
-
-                    logEntry += `<span style="color:${color};">Field Strength (X, Y, Z, Norm): ${magX_uT}  ${magY_uT}  ${magZ_uT}  ${norm_uT}</span>\n`;
-
-                    index += 3;
-                }
-
+                let color = isAlive ? (allZero ? "red" : "black") : "#E0E0E0";
+                logEntry += `<span style="color:${color};">Field Strength (X): ${magX_values.join("  ")}</span>\n`;
+                logEntry += `<span style="color:${color};">Field Strength (Y): ${magY_values.join("  ")}</span>\n`;
+                logEntry += `<span style="color:${color};">Field Strength (Z): ${magZ_values.join("  ")}</span>\n`;
+                logEntry += `<span style="color:${color};">Field Strength (N): ${norm_values.join("  ")}</span>\n`;
                 logEntry += "\n";
             }
+
+
 
             displayLogData.push(logEntry);
             if (displayLogData.length > 5) {
@@ -315,12 +320,16 @@ SD card: <span style="color: ${data.d.sdoff ? 'black' : 'red'};">${data.d.sdoff 
 
         function displayHelp() {
             const helpText = `
-                <p><strong>start</strong>: Begin sensor data measurement.</p>
-
-                <p><strong>stop</strong>: Stop sensor data measurement.</p>
-                
-                <p><strong>set N</strong>: Set the maximum data entries per file. A new file is created when this limit is exceeded.</p>
-            `;
+<strong>start</strong>: Begin sensor data measurement.
+<strong>stop</strong>: Stop sensor data measurement.
+<strong>reset</strong>: Restart the device and reinitialize hardware components.
+<strong>sdoff</strong>: Disable the SD card before turning off the power.
+<strong>sdon</strong>: Enable the SD card if it was previously turned off.
+<strong>turn t N V</strong>: Activate (V=1) or deactivate (V=0) temperature sensor slave N.
+<strong>turn m N V</strong>: Activate (V=1) or deactivate (V=0) magnetic sensor slave N.
+<strong>set N</strong>: Set the maximum data entries per file. A new file is created when this limit is exceeded.
+<strong>adjust N</strong>: Set the sampling interval (minimum 10 seconds).
+`.trim().replace(/\n\s+/g, '\n');  // 자동 들여쓰기 제거
 
             document.getElementById("extra").innerHTML += helpText.trim();
         }
