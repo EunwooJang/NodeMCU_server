@@ -1,7 +1,8 @@
 #include "WifiConnect.h"
 
 void Wificonnect() {
-  // 저수준 파일
+  
+  // 저수준 파일 
   File32 file = sd.open("wifi.txt", O_READ);
   if (!file) {
       DEBUG_PRINTLN("Failed to open wifi.txt");
@@ -56,15 +57,4 @@ void Wificonnect() {
   if (!connected) {
     DEBUG_PRINTLN("No available WiFi networks connected.");
   }
-  
-  // 만일 SD카드에 들어있는 와이파이 정보들로 접속 불가 시, 아래의 코드를 실행해야 함
-  /*
-  WiFi.begin("ssid", "password");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    DEBUG_PRINT(".");
-  }
-  DEBUG_PRINTLN("IP Address: ");
-  DEBUG_PRINTLN(WiFi.localIP());
-  */
 }

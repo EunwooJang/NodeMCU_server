@@ -6,8 +6,8 @@ const char *version = "1.1.1";
 int temp_slave_Amount = 4;   
 int temp_sensor_Amount = 5;
 
-int magnetic_slave_Amount = 2;
-int magnetic_sensor_Amount = 1;
+int magnetic_slave_Amount = 2; // 4;
+int magnetic_sensor_Amount = 1; // 3;
 
 int cur_index = 0;
 

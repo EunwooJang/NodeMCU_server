@@ -27,7 +27,7 @@ size_t len1 = 4 * temp_slave_Amount * temp_sensor_Amount;
 size_t len2 = 6 * magnetic_slave_Amount * magnetic_sensor_Amount;
 
 // 상태/데이터 클라이언트에게 전달
-static char cur_payload[512] = "";
+static char cur_payload[512] = "";  // temp slave 4개(센서 5개) + magnetic slave 4개(센서 3개) -> 486바이트로 충분
 static char cur_status[256] = "";
 
 void setup() {
@@ -71,7 +71,7 @@ void setup() {
   DEBUG_PRINTLN("HTTP server started");
 
   // 서버 시작을 메일로 보냄
-  sendEmail("NodeMCU Server v1.1.1", "Server Intialized");
+  // sendEmail("NodeMCU Server v1.1.1", "Server Intialized");
 }
 
 // 상태 정보를 서버로 전달
@@ -204,44 +204,35 @@ void saveDataToSD(unsigned long unixTime, const char* d1, const char* d2) {
 
 
 void loop() {
-  
-  static unsigned long lastWebSocketSendTimemillis = 0;
-  unsigned long currentTimemillis = millis();
 
-  if (ESP.getFreeHeap() < prevHeap) {
+   if (ESP.getFreeHeap() < prevHeap) {
     DEBUG_PRINT(ESP.getFreeHeap());
     DEBUG_PRINT(" ");
     DEBUG_PRINTLN(prevHeap - ESP.getFreeHeap());
     prevHeap = ESP.getFreeHeap();
   }
 
-  ws.cleanupClients();
+  static unsigned long lastunixTime = 0;
+  unsigned long unixTime = 0;
+  struct tm timeinfo;
 
-  if ((currentTimemillis - lastWebSocketSendTimemillis >= acquisitiontimeIntervalmillis) && !isUpdating) {
-      
-    lastWebSocketSendTimemillis = currentTimemillis;
-    
+  // 현재 NTP 시간 가져오기
+  if (getLocalTime(&timeinfo)) {
+    unixTime = mktime(&timeinfo);
+  }
+
+  // NTP 시간이 유효하지 않다면, 이전 시간을 유지하면서 10초 증가
+  if (unixTime == 0) {
+    unixTime = lastunixTime + (acquisitiontimeIntervalmillis / 1000);
+  }
+
+  // 10초 단위로 나누어 떨어지는 경우에만 실행
+  if ((unixTime % (acquisitiontimeIntervalmillis / 1000) == 0) && (unixTime != lastunixTime)) {
+    lastunixTime = unixTime;
+
     // 측정 상태 설정
     isMeasuring = true;
     DEBUG_PRINTLN("Measuring...");
-
-    struct tm timeinfo;
-    unsigned long unixTime;
-    static unsigned long lastunixTime;
-
-    // 서버 시간 얻기
-    if (getLocalTime(&timeinfo)) {
-      unixTime = mktime(&timeinfo);
-    } else {
-      unixTime = 0;
-    }
-
-    // 서버 시간 얻기 성공/실패 유무에 따른 처리
-    if (unixTime == 0) {
-      lastunixTime += acquisitiontimeIntervalmillis / 1000;
-    } else {
-      lastunixTime = unixTime;
-    }
 
     // 센서 데이터 얻기
     dhtMulti.getAllSensorData();
@@ -271,11 +262,11 @@ void loop() {
       sendPayload(lastunixTime);
     }
 
-    // 측정상태 해제
+    // 측정 상태 해제
     isMeasuring = false;
     DEBUG_PRINTLN("Standby");
-
   }
 
+  ws.cleanupClients();
   yield();
 }

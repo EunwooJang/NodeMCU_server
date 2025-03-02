@@ -8,4 +8,5 @@ bool isSDoff = false;
 bool isSwitched = false;
 
 bool alive_temp_slave[] = {true, false, true, false};
-bool alive_mag_slave[] = {true, false};
+bool alive_mag_slave[] = {true, false}; // {true, true, true, true};
+ 

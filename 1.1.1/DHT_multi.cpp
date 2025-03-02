@@ -15,7 +15,7 @@ void DHTMulti::getAllSensorData() {
   snprintf(command, sizeof(command), "SATD");
   hc12.write(command);  // 문자열의 실제 길이만큼 전송
   hc12.flush();
-  delay(300);  // 슬레이브가 데이터 수집할 동안 대기
+  delay(100);  // 슬레이브가 데이터 수집할 동안 대기
 
   for (uint8_t i = 1; i <= slaveAmount; i++) {
 
