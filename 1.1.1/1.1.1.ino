@@ -250,12 +250,19 @@ void loop() {
     }
     
     // 저장 중이 아닐 때, 파일이름 및 저장 데이터 인덱스 초기화
-    if (!isSaving && isSwitched) {
+    if (isSaving && isSwitched) {
       cur_index = 0;
       currentlysavingFile = "";
       isSwitched = false;
     }
-
+    
+    // 저장 중이 아닐 때, 파일이름 및 저장 데이터 인덱스 초기화
+    if (!isSaving) {
+      cur_index = 0;
+      currentlysavingFile = "";
+      isSwitched = false;
+    }
+    
     // 클라이언트 접속 시
     if (client_n > 0) {
       sendStatus();
